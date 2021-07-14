@@ -13,17 +13,17 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&help, "help", false, "help")
-	flag.StringVar(&testName, "test", "", "which test(s) do you want to run: basic/advance/all")
-
-	flag.Usage = usage
-	flag.Parse()
-
-	if help || (testName != "basic" && testName != "advance" && testName != "all") {
-		flag.Usage()
-		os.Exit(0)
-	}
-
+	//flag.BoolVar(&help, "help", false, "help")
+	//flag.StringVar(&testName, "test", "", "which test(s) do you want to run: basic/advance/all")
+	//
+	//flag.Usage = usage
+	//flag.Parse()
+	//
+	//if help || (testName != "basic" && testName != "advance" && testName != "all") {
+	//	flag.Usage()
+	//	os.Exit(0)
+	//}
+	testName = "all"
 	rand.Seed(time.Now().UnixNano())
 }
 

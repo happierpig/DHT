@@ -1,7 +1,8 @@
 package main
 
 type dhtNode interface {
-	/* "Run" is called after calling "NewNode". */
+	/* "Run" is called after calling "NewNode".
+	run in concurrent ,considering lock */
 	Run()
 
 	/* "Create" and "Join" are called after calling "Run". */

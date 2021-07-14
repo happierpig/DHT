@@ -17,21 +17,21 @@ func basicTest() (bool, int, int) {
 		panicked = true
 	}()
 
-	nodes := new([basicTestNodeSize + 1]dhtNode)
-	nodeAddresses := new([basicTestNodeSize + 1]string)
+	nodes := new([basicTestNodeSize + 1]dhtNode)        // 0-100 total in 101; array pointer
+	nodeAddresses := new([basicTestNodeSize + 1]string) //address is ip:port
 	kvMap := make(map[string]string)
 
 	/* "Run" all nodes. */
-	wg = new(sync.WaitGroup)
+	wg = new(sync.WaitGroup) // concurrent
 	for i := 0; i <= basicTestNodeSize; i++ {
-		nodes[i] = NewNode(firstPort + i)
-		nodeAddresses[i] = portToAddr(localAddress, firstPort+i)
+		nodes[i] = NewNode(firstPort + i)                        // NewNode return value-type ptr/value copy-> dhtNode(interface)
+		nodeAddresses[i] = portToAddr(localAddress, firstPort+i) // firstPort == 20000
 
 		wg.Add(1)
 		go nodes[i].Run()
 	}
 
-	nodesInNetwork := make([]int, 0, basicTestNodeSize+1)
+	nodesInNetwork := make([]int, 0, basicTestNodeSize+1) // slice len = 0;cap = 101
 
 	time.Sleep(basicTestAfterRunSleepTime)
 
@@ -75,10 +75,10 @@ func basicTest() (bool, int, int) {
 		}
 		_, _ = cyan.Printf("Start putting (round %d, part 1)\n", t)
 		for i := 1; i <= basicTestRoundPutSize; i++ {
-			key := randString(lengthOfKeyValue)
-			value := randString(lengthOfKeyValue)
+			key := randString(lengthOfKeyValue)   // 50
+			value := randString(lengthOfKeyValue) // 50
 			kvMap[key] = value
-
+			// rand.Intn return a value in [0,n)
 			if !nodes[nodesInNetwork[rand.Intn(len(nodesInNetwork))]].Put(key, value) {
 				put1Info.fail()
 			} else {
@@ -95,7 +95,7 @@ func basicTest() (bool, int, int) {
 		}
 		_, _ = cyan.Printf("Start getting (round %d, part 1)\n", t)
 		get1Cnt := 0
-		for key, value := range kvMap {
+		for key, value := range kvMap { // key-value map travel
 			ok, res := nodes[nodesInNetwork[rand.Intn(len(nodesInNetwork))]].Get(key)
 			if !ok || res != value {
 				get1Info.fail()
