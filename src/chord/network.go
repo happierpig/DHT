@@ -1,15 +1,24 @@
 package chord
 
 import (
+	"errors"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/rpc"
 )
 
-type network struct {
-	serv *rpc.Server
-	lis  net.Listener
+var (
+	localAddress string
+)
 
+func init() {
+	//localAddress = GetLocalAddress()
+	localAddress = "127.0.0.1"
+}
+
+type network struct {
+	serv    *rpc.Server
+	lis     net.Listener
 	nodePtr *WrapNode
 }
 
@@ -40,7 +49,7 @@ func CheckOnline(address string) bool {
 		log.Warningln("IP address is nil")
 		return false
 	}
-	client, err := net.Dial("tcp", address)
+	client, err := rpc.Dial("tcp", address)
 	if err != nil {
 		log.Warningln("Fail to dial in ", address, " and error is ", err)
 		return false
@@ -50,5 +59,29 @@ func CheckOnline(address string) bool {
 	} else {
 		return false
 	}
+	log.Infoln("Ping Online in ", address)
 	return true
+}
+
+func RemoteCall(targetNode string, funcClass string, input interface{}, result interface{}) error {
+	if targetNode == "" {
+		log.Warningln("RemoteCall : IP address is nil")
+		return errors.New("Null address")
+	}
+	client, err := rpc.Dial("tcp", targetNode)
+	if err != nil {
+		log.Warningln("RemoteCall : Fail to dial in ", targetNode, " and error is ", err)
+		return err
+	}
+	if client != nil {
+		defer client.Close()
+	}
+	err2 := client.Call(funcClass, input, result)
+	if err2 != nil {
+		log.Infoln("RemoteCall in ", targetNode, " with ", funcClass, " success!")
+		return nil
+	} else {
+		log.Errorln("RemoteCall in ", targetNode, " with ", funcClass, " fail!")
+		return err2
+	}
 }

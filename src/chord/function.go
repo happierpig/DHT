@@ -12,7 +12,7 @@ func ConsistentHash(raw string) *big.Int {
 	return (&big.Int{}).SetBytes(hash.Sum(nil))
 }
 
-// function to get local address(ip address)
+// GetLocalAddress function to get local address(ip address)
 func GetLocalAddress() string {
 	var localaddress string
 	ifaces, err := net.Interfaces()
@@ -42,4 +42,21 @@ func GetLocalAddress() string {
 		panic("init: failed to find non-loopback interface with valid address on this node")
 	}
 	return localaddress
+}
+
+//contain:mode true -- ( ]   mode false -- ( )
+func contain(target, start, end *big.Int, mode bool) bool {
+	if mode {
+		if end.Cmp(start) > 0 {
+			return (target.Cmp(start) > 0) && (end.Cmp(target) >= 0)
+		} else {
+			return (target.Cmp(start) > 0) || (end.Cmp(target) >= 0)
+		}
+	} else {
+		if end.Cmp(start) > 0 {
+			return (target.Cmp(start) > 0) && (end.Cmp(target) > 0)
+		} else {
+			return (target.Cmp(start) > 0) || (end.Cmp(target) > 0)
+		}
+	}
 }
