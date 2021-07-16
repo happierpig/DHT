@@ -66,7 +66,7 @@ func CheckOnline(address string) bool {
 func RemoteCall(targetNode string, funcClass string, input interface{}, result interface{}) error {
 	if targetNode == "" {
 		log.Warningln("RemoteCall : IP address is nil")
-		return errors.New("Null address")
+		return errors.New("Null address for RemoteCall")
 	}
 	client, err := rpc.Dial("tcp", targetNode)
 	if err != nil {
@@ -77,7 +77,7 @@ func RemoteCall(targetNode string, funcClass string, input interface{}, result i
 		defer client.Close()
 	}
 	err2 := client.Call(funcClass, input, result)
-	if err2 != nil {
+	if err2 == nil {
 		log.Infoln("RemoteCall in ", targetNode, " with ", funcClass, " success!")
 		return nil
 	} else {

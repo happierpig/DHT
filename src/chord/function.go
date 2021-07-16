@@ -47,16 +47,23 @@ func GetLocalAddress() string {
 //contain:mode true -- ( ]   mode false -- ( )
 func contain(target, start, end *big.Int, mode bool) bool {
 	if mode {
+		if end.Cmp(start) == 0 {
+			return true
+		}
 		if end.Cmp(start) > 0 {
 			return (target.Cmp(start) > 0) && (end.Cmp(target) >= 0)
-		} else {
+		} else if end.Cmp(start) < 0 {
 			return (target.Cmp(start) > 0) || (end.Cmp(target) >= 0)
 		}
 	} else {
+		if end.Cmp(start) == 0 {
+			return false
+		}
 		if end.Cmp(start) > 0 {
 			return (target.Cmp(start) > 0) && (end.Cmp(target) > 0)
-		} else {
+		} else if end.Cmp(start) < 0 {
 			return (target.Cmp(start) > 0) || (end.Cmp(target) > 0)
 		}
 	}
+	return false
 }
