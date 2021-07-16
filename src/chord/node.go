@@ -6,10 +6,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"math/big"
 	"sync"
+	"time"
 )
 
 const successorListSize int = 5
-const hashBitsSize int = 160 // fingerTable: 0 - 160
+const hashBitsSize int = 160 // fingerTable: 0 - 159
 
 type Node struct {
 	address string   // NewNode()-> Init()
@@ -39,10 +40,10 @@ func (this *Node) Run() {
 	this.station = new(network)
 	err := this.station.Init(this.address, this)
 	if err != nil {
-		log.Errorln("Run failed ", err)
+		log.Errorln("<Run> failed ", err)
 		return
 	}
-	log.Infoln("Run success in ", this.address)
+	log.Infoln("<Run> success in ", this.address)
 	this.conRoutineFlag = true
 	this.next = 1
 }
@@ -51,7 +52,8 @@ func (this *Node) Create() {
 	this.predecessor = ""
 	this.successorList[0] = this.address
 	this.fingerTable[0] = this.address
-	log.Infoln("Create new ring success in ", this.address)
+	this.background()
+	log.Infoln("<Create> new ring success in ", this.address)
 }
 
 func (this *Node) Join(addr string) bool {
@@ -80,11 +82,24 @@ func (this *Node) Join(addr string) bool {
 		this.successorList[i] = temp[i-1]
 	}
 	this.rwLock.Unlock()
+	this.background()
 	return true
 }
 
 func (this *Node) Quit() {
-
+	err := this.station.ShutDown()
+	if err != nil {
+		log.Errorln("<Quit> fail to quit in ", this.address)
+	}
+	this.rwLock.Lock()
+	this.conRoutineFlag = false
+	this.next = 1
+	this.rwLock.Unlock()
+	var succAddr string
+	this.first_online_successor(&succAddr)
+	RemoteCall(succAddr, "WrapNode.CheckPredecessor", 2021, &succAddr)
+	RemoteCall(this.predecessor, "WrapNode.Stablize", 2021, &succAddr)
+	log.Infoln("<Quit> ", this.address, " Quit Successfully ;)")
 }
 
 func (this *Node) ForceQuit() {
@@ -128,7 +143,7 @@ func (this *Node) closest_preceding_node(target *big.Int) string {
 			continue
 		}
 		if contain(ConsistentHash(this.fingerTable[i]), this.ID, target, false) { // get ( , )
-			log.Infoln("Find closest_preceding_node Successfully in Node ", this.address)
+			log.Infoln("<closest_preceding_node>Find closest_preceding_node Successfully in Node ", this.address)
 			return this.fingerTable[i]
 		}
 	}
@@ -193,11 +208,13 @@ func (this *Node) stabilize() {
 		this.successorList[i] = temp[i-1]
 	}
 	this.rwLock.Unlock()
-	err = RemoteCall(newSucAddr, "WrapNode.Notify", this.address, &this.address)
+	var occupy string
+	err = RemoteCall(newSucAddr, "WrapNode.Notify", this.address, &occupy)
 	if err != nil {
 		log.Errorln("<stabilize> Fail to notify ,Can't get call successor :  ", err)
 		return
 	}
+	log.Infoln("<stablize> successfully :) in ", this.address)
 }
 
 func (this *Node) notify(instructor string) error {
@@ -213,13 +230,14 @@ func (this *Node) notify(instructor string) error {
 	return nil
 }
 
-func (this *Node) check_predecessor() {
+func (this *Node) check_predecessor() error {
 	if this.predecessor != "" && !CheckOnline(this.predecessor) {
 		this.rwLock.Lock()
 		this.predecessor = ""
 		this.rwLock.Unlock()
 		log.Infoln("<check_predecessor> Find failed predecessor :)")
 	}
+	return nil
 }
 
 func (this *Node) fix_finger() {
@@ -237,4 +255,26 @@ func (this *Node) fix_finger() {
 		this.next = 1
 	}
 	this.rwLock.Unlock()
+	log.Infoln("<fix_finger> fix successfully :) in ", this.address)
+}
+
+func (this *Node) background() {
+	go func() {
+		for this.conRoutineFlag {
+			this.stabilize()
+			time.Sleep(timeCut)
+		}
+	}()
+	go func() {
+		for this.conRoutineFlag {
+			this.check_predecessor()
+			time.Sleep(timeCut)
+		}
+	}()
+	go func() {
+		for this.conRoutineFlag {
+			this.fix_finger()
+			time.Sleep(timeCut)
+		}
+	}()
 }

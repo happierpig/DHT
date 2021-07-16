@@ -4,12 +4,14 @@ import (
 	"crypto/sha1"
 	"math/big"
 	"net"
+	"time"
 )
 
 var (
 	localAddress string
 	calculateMod *big.Int
 	base         *big.Int
+	timeCut      time.Duration
 )
 
 func init() {
@@ -17,6 +19,7 @@ func init() {
 	localAddress = "127.0.0.1"
 	base = big.NewInt(2)
 	calculateMod = new(big.Int).Exp(base, big.NewInt(160), nil)
+	timeCut = 250 * time.Millisecond
 }
 
 func ConsistentHash(raw string) *big.Int {

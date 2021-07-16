@@ -22,3 +22,12 @@ func (this *WrapNode) GetPredecessor(_ int, result *string) error {
 func (this *WrapNode) Notify(instructor string, _ *string) error {
 	return this.node.notify(instructor)
 }
+
+func (this *WrapNode) CheckPredecessor(_ int, _ *string) error {
+	return this.node.check_predecessor()
+}
+
+func (this *WrapNode) Stablize(_ int, _ *string) error {
+	this.node.stabilize()
+	return nil
+}

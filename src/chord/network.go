@@ -21,28 +21,27 @@ func (this *network) Init(address string, ptr *Node) error {
 	//注册rpc服务
 	err1 := this.serv.Register(this.nodePtr)
 	if err1 != nil {
-		log.Errorf("fail to register in address : %s\n", address)
+		log.Errorf("<RPC Init>fail to register in address : %s\n", address)
 		return err1
 	}
 	// 指定rpc模式为TCP模式，地址为address，开始监听
 	this.lis, err1 = net.Listen("tcp", address)
 	if err1 != nil {
-		log.Errorf("fail to listen in address : %s\n", address)
+		log.Errorf("<RPC Init>fail to listen in address : %s\n", address)
 		return err1
 	}
-	log.Infof("tcp rpc service start success in %s\n", address)
+	log.Infof("<RPC Init> service start success in %s\n", address)
 	go this.serv.Accept(this.lis)
 	return nil
 }
 
 func CheckOnline(address string) bool {
 	if address == "" {
-		log.Warningln("IP address is nil")
+		log.Warningln("<CheckOnline> IP address is nil")
 		return false
 	}
 	client, err := rpc.Dial("tcp", address)
 	if err != nil {
-		log.Warningln("Fail to dial in ", address, " and error is ", err)
 		return false
 	}
 	if client != nil {
@@ -50,18 +49,18 @@ func CheckOnline(address string) bool {
 	} else {
 		return false
 	}
-	log.Infoln("Ping Online in ", address)
+	log.Infoln("<CheckOnline> Ping Online in ", address)
 	return true
 }
 
 func RemoteCall(targetNode string, funcClass string, input interface{}, result interface{}) error {
 	if targetNode == "" {
-		log.Warningln("RemoteCall : IP address is nil")
+		log.Warningln("<RemoteCall> IP address is nil")
 		return errors.New("Null address for RemoteCall")
 	}
 	client, err := rpc.Dial("tcp", targetNode)
 	if err != nil {
-		log.Warningln("RemoteCall : Fail to dial in ", targetNode, " and error is ", err)
+		log.Warningln("<RemoteCall> Fail to dial in ", targetNode, " and error is ", err)
 		return err
 	}
 	if client != nil {
@@ -69,10 +68,20 @@ func RemoteCall(targetNode string, funcClass string, input interface{}, result i
 	}
 	err2 := client.Call(funcClass, input, result)
 	if err2 == nil {
-		log.Infoln("RemoteCall in ", targetNode, " with ", funcClass, " success!")
+		log.Infoln("<RemoteCall> in ", targetNode, " with ", funcClass, " success!")
 		return nil
 	} else {
-		log.Errorln("RemoteCall in ", targetNode, " with ", funcClass, " fail!")
+		log.Errorln("<RemoteCall> in ", targetNode, " with ", funcClass, " fail!")
 		return err2
 	}
+}
+
+func (this *network) ShutDown() error {
+	err := this.lis.Close()
+	if err != nil {
+		log.Errorln("<ShutDown> Fail to close the network in ", this.nodePtr.node.address)
+		return err
+	}
+	log.Infoln("<ShutDown> -", this.nodePtr.node.address, "- network close successfully :)")
+	return nil
 }
