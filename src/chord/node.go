@@ -22,8 +22,9 @@ type Node struct {
 	predecessor   string
 	fingerTable   [hashBitsSize]string
 
-	rwLock sync.RWMutex
-	data   sync.Map // <string,string>
+	rwLock   sync.RWMutex
+	dataSet  map[string]string
+	dataLock sync.RWMutex
 
 	station *network
 
@@ -34,6 +35,7 @@ func (this *Node) Init(port int) {
 	this.address = fmt.Sprintf("%s:%d", localAddress, port)
 	this.ID = ConsistentHash(this.address)
 	this.conRoutineFlag = false
+	this.dataSet = make(map[string]string)
 }
 
 func (this *Node) Run() {
@@ -96,14 +98,23 @@ func (this *Node) Quit() {
 	this.next = 1
 	this.rwLock.Unlock()
 	var succAddr string
+	var occupy string
 	this.first_online_successor(&succAddr)
-	RemoteCall(succAddr, "WrapNode.CheckPredecessor", 2021, &succAddr)
-	RemoteCall(this.predecessor, "WrapNode.Stablize", 2021, &succAddr)
+	RemoteCall(succAddr, "WrapNode.CheckPredecessor", 2021, &occupy)
+	RemoteCall(this.predecessor, "WrapNode.Stablize", 2021, &occupy)
 	log.Infoln("<Quit> ", this.address, " Quit Successfully ;)")
 }
 
 func (this *Node) ForceQuit() {
-
+	err := this.station.ShutDown()
+	if err != nil {
+		log.Errorln("<Quit> fail to quit in ", this.address)
+	}
+	this.rwLock.Lock()
+	this.conRoutineFlag = false
+	this.next = 1
+	this.rwLock.Unlock()
+	log.Infoln("<ForceQuit> ", this.address, " Quit Successfully ;)")
 }
 
 func (this *Node) Ping(addr string) bool {
@@ -111,14 +122,66 @@ func (this *Node) Ping(addr string) bool {
 }
 
 func (this *Node) Put(key string, value string) bool {
+	if !this.conRoutineFlag {
+		log.Errorln("<Put> The Node is sleeping.. (", this.address)
+		return false
+	}
+	var targetAddr string
+	err := this.find_successor(ConsistentHash(key), &targetAddr)
+	if err != nil {
+		log.Errorln("<Put> Fail to Find Key's Successor...")
+		return false
+	}
+	var occupy string
+	var dataPair Pair = Pair{key, value}
+	err = RemoteCall(targetAddr, "WrapNode.StoreData", dataPair, &occupy)
+	if err != nil {
+		log.Errorln("<Put> Fail to Put Data into Target Node in ", targetAddr, " | error: ", err)
+		return false
+	}
+	log.Infoln("<Put> Put Data into ", targetAddr, " successfully. :)")
 	return true
 }
 
 func (this *Node) Get(key string) (bool, string) {
-	return true, ""
+	if !this.conRoutineFlag {
+		log.Errorln("<Get> The node is sleeping.. (", this.address)
+		return false, ""
+	}
+	var value string
+	var targetAddr string
+	err := this.find_successor(ConsistentHash(key), &targetAddr)
+	if err != nil {
+		log.Errorln("<Get> Fail to Find Key's Successor...")
+		return false, ""
+	}
+	err = RemoteCall(targetAddr, "WrapNode.GetData", key, &value)
+	if err != nil {
+		log.Errorln("<Get> Fail to Get Data from Target Node in ", targetAddr, " | error: ", err)
+		return false, ""
+	}
+	log.Infoln("<Get> Get Data from ", targetAddr, " successfully. :)")
+	return true, value
 }
 
 func (this *Node) Delete(key string) bool {
+	if !this.conRoutineFlag {
+		log.Errorln("<Delete> The node is sleeping.. (", this.address)
+		return false
+	}
+	var targetAddr string
+	err := this.find_successor(ConsistentHash(key), &targetAddr)
+	if err != nil {
+		log.Errorln("<Delete> Fail to Find Key's Successor...")
+		return false
+	}
+	var occupy string
+	err = RemoteCall(targetAddr, "WrapNode.DeleteData", key, &occupy)
+	if err != nil {
+		log.Errorln("<Delete> Fail to Delete Data from Target Node in ", targetAddr, " | error: ", err)
+		return false
+	}
+	log.Infoln("<Delete> Delete Data from ", targetAddr, " successfully. :)")
 	return true
 }
 
@@ -178,7 +241,7 @@ func (this *Node) first_online_successor(result *string) error {
 			return nil
 		}
 	}
-	log.Errorln("<first_online_successor> List Break")
+	log.Errorln("<first_online_successor> List Break in ", this.address)
 	return errors.New("List Break")
 }
 
@@ -187,6 +250,9 @@ func (this *Node) stabilize() {
 	var newSucAddr string
 	this.first_online_successor(&newSucAddr)
 	err := RemoteCall(newSucAddr, "WrapNode.GetPredecessor", 2021, &succPredAddr)
+
+	//todo: here ensure the newSucAddr's predecessor is Online or nil may increase efficiency
+
 	if err != nil {
 		log.Errorln("<stabilize> fail to get predecessor in ", newSucAddr)
 		return
@@ -277,4 +343,38 @@ func (this *Node) background() {
 			time.Sleep(timeCut)
 		}
 	}()
+}
+
+func (this *Node) store_data(dataPair Pair) error {
+	this.dataLock.Lock()
+	this.dataSet[dataPair.Key] = dataPair.Value
+	this.dataLock.Unlock()
+	return nil
+}
+
+func (this *Node) get_data(key string, value *string) error {
+	this.dataLock.RLock()
+	tmp, ok := this.dataSet[key]
+	this.dataLock.RUnlock()
+	if ok {
+		*value = tmp
+		return nil
+	} else {
+		*value = ""
+		return errors.New("<get_data> Unreachable Data")
+	}
+}
+
+func (this *Node) delete_data(key string) error {
+	this.dataLock.Lock()
+	_, ok := this.dataSet[key]
+	if ok {
+		delete(this.dataSet, key)
+	}
+	this.dataLock.Unlock()
+	if ok {
+		return nil
+	} else {
+		return errors.New("<delete_data> Unreachable Data")
+	}
 }

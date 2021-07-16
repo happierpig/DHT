@@ -12,14 +12,21 @@ var (
 	calculateMod *big.Int
 	base         *big.Int
 	timeCut      time.Duration
+	waitTime     time.Duration
 )
+
+type Pair struct {
+	Key   string
+	Value string
+}
 
 func init() {
 	//localAddress = GetLocalAddress()
 	localAddress = "127.0.0.1"
 	base = big.NewInt(2)
 	calculateMod = new(big.Int).Exp(base, big.NewInt(160), nil)
-	timeCut = 250 * time.Millisecond
+	timeCut = 350 * time.Millisecond
+	waitTime = 250 * time.Millisecond
 }
 
 func ConsistentHash(raw string) *big.Int {

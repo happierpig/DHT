@@ -31,3 +31,15 @@ func (this *WrapNode) Stablize(_ int, _ *string) error {
 	this.node.stabilize()
 	return nil
 }
+
+func (this *WrapNode) StoreData(dataPair Pair, _ *string) error {
+	return this.node.store_data(dataPair)
+}
+
+func (this *WrapNode) GetData(key string, value *string) error {
+	return this.node.get_data(key, value)
+}
+
+func (this *WrapNode) DeleteData(key string, _ *string) error {
+	return this.node.delete_data(key)
+}

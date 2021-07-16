@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/rpc"
+	"time"
 )
 
 type network struct {
@@ -35,13 +36,37 @@ func (this *network) Init(address string, ptr *Node) error {
 	return nil
 }
 
-func CheckOnline(address string) bool {
+func GetClient(address string) (*rpc.Client, error) {
 	if address == "" {
-		log.Warningln("<CheckOnline> IP address is nil")
-		return false
+		log.Warningln("<GetClient> IP address is nil")
+		return nil, errors.New("<GetClient> IP address is nil")
 	}
-	client, err := rpc.Dial("tcp", address)
+	var client *rpc.Client
+	var err error
+	ch := make(chan error)
+	for i := 0; i < 4; i++ {
+		go func() {
+			client, err = rpc.Dial("tcp", address)
+			ch <- err
+		}()
+		select {
+		case <-ch:
+			if err == nil {
+				return client, nil
+			}
+			// try many times to avoid that
+		case <-time.After(waitTime):
+			err = errors.New("Timeout")
+			log.Warnln("<GetClient> Timeout to ", address)
+		}
+	}
+	return nil, err
+}
+
+func CheckOnline(address string) bool {
+	client, err := GetClient(address)
 	if err != nil {
+		log.Infoln("<CheckOnline> Ping Fail in ", address, "error: ", err)
 		return false
 	}
 	if client != nil {
@@ -58,7 +83,7 @@ func RemoteCall(targetNode string, funcClass string, input interface{}, result i
 		log.Warningln("<RemoteCall> IP address is nil")
 		return errors.New("Null address for RemoteCall")
 	}
-	client, err := rpc.Dial("tcp", targetNode)
+	client, err := GetClient(targetNode)
 	if err != nil {
 		log.Warningln("<RemoteCall> Fail to dial in ", targetNode, " and error is ", err)
 		return err
