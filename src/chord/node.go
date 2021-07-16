@@ -25,6 +25,8 @@ type Node struct {
 	data   sync.Map // <string,string>
 
 	station *network
+
+	next int // for fix_finger
 }
 
 func (this *Node) Init(port int) {
@@ -42,11 +44,13 @@ func (this *Node) Run() {
 	}
 	log.Infoln("Run success in ", this.address)
 	this.conRoutineFlag = true
+	this.next = 1
 }
 
 func (this *Node) Create() {
 	this.predecessor = ""
 	this.successorList[0] = this.address
+	this.fingerTable[0] = this.address
 	log.Infoln("Create new ring success in ", this.address)
 }
 
@@ -71,6 +75,7 @@ func (this *Node) Join(addr string) bool {
 	this.rwLock.Lock()
 	this.predecessor = ""
 	this.successorList[0] = succAddr
+	this.fingerTable[0] = succAddr
 	for i := 1; i < successorListSize; i++ {
 		this.successorList[i] = temp[i-1]
 	}
@@ -104,8 +109,10 @@ func (this *Node) Delete(key string) bool {
 
 // below are private functions todo(FirstValidSuccessor)
 func (this *Node) find_successor(target *big.Int, result *string) error {
-	if contain(target, this.ID, ConsistentHash(this.successorList[0]), true) {
-		*result = this.successorList[0]
+	var succAddr string
+	this.first_online_successor(&succAddr)
+	if contain(target, this.ID, ConsistentHash(succAddr), true) {
+		*result = succAddr
 		return nil
 	}
 	closestPre := this.closest_preceding_node(target)
@@ -120,7 +127,7 @@ func (this *Node) closest_preceding_node(target *big.Int) string {
 		if !CheckOnline(this.fingerTable[i]) {
 			continue
 		}
-		if contain(ConsistentHash(this.fingerTable[i]), this.ID, target, false) {
+		if contain(ConsistentHash(this.fingerTable[i]), this.ID, target, false) { // get ( , )
 			log.Infoln("Find closest_preceding_node Successfully in Node ", this.address)
 			return this.fingerTable[i]
 		}
@@ -161,5 +168,73 @@ func (this *Node) first_online_successor(result *string) error {
 }
 
 func (this *Node) stabilize() {
+	var succPredAddr string
+	var newSucAddr string
+	this.first_online_successor(&newSucAddr)
+	err := RemoteCall(newSucAddr, "WrapNode.GetPredecessor", 2021, &succPredAddr)
+	if err != nil {
+		log.Errorln("<stabilize> fail to get predecessor in ", newSucAddr)
+		return
+	}
+	if succPredAddr != "" && contain(ConsistentHash(succPredAddr), this.ID, ConsistentHash(newSucAddr), false) { // change to new successor
+		newSucAddr = succPredAddr
+	}
+	// modify successorList
+	var temp [successorListSize]string
+	err = RemoteCall(newSucAddr, "WrapNode.SetSuccessorList", 2021, &temp)
+	if err != nil {
+		log.Errorln("<stabilize> Fail to stabilize ,Can't get successorList:  ", err)
+		return
+	}
+	this.rwLock.Lock()
+	this.successorList[0] = newSucAddr
+	this.fingerTable[0] = newSucAddr
+	for i := 1; i < successorListSize; i++ {
+		this.successorList[i] = temp[i-1]
+	}
+	this.rwLock.Unlock()
+	err = RemoteCall(newSucAddr, "WrapNode.Notify", this.address, &this.address)
+	if err != nil {
+		log.Errorln("<stabilize> Fail to notify ,Can't get call successor :  ", err)
+		return
+	}
+}
 
+func (this *Node) notify(instructor string) error {
+	if this.predecessor == instructor {
+		return nil
+	}
+	if this.predecessor == "" || contain(ConsistentHash(instructor), ConsistentHash(this.predecessor), this.ID, false) {
+		this.rwLock.Lock()
+		this.predecessor = instructor
+		this.rwLock.Unlock()
+		log.Infoln("<notify> Change ", this.address, " Predecessor to ", instructor)
+	}
+	return nil
+}
+
+func (this *Node) check_predecessor() {
+	if this.predecessor != "" && !CheckOnline(this.predecessor) {
+		this.rwLock.Lock()
+		this.predecessor = ""
+		this.rwLock.Unlock()
+		log.Infoln("<check_predecessor> Find failed predecessor :)")
+	}
+}
+
+func (this *Node) fix_finger() {
+	var ans string
+	err := this.find_successor(calculateID(this.ID, this.next), &ans)
+	if err != nil {
+		log.Errorln("<fix_finger> error occurs")
+		return
+	}
+	this.rwLock.Lock()
+	this.fingerTable[0] = this.successorList[0]
+	this.fingerTable[this.next] = ans
+	this.next += 1
+	if this.next >= hashBitsSize {
+		this.next = 1
+	}
+	this.rwLock.Unlock()
 }

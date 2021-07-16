@@ -18,3 +18,7 @@ func (this *WrapNode) SetSuccessorList(_ int, result *[successorListSize]string)
 func (this *WrapNode) GetPredecessor(_ int, result *string) error {
 	return this.node.get_predecessor(result)
 }
+
+func (this *WrapNode) Notify(instructor string, _ *string) error {
+	return this.node.notify(instructor)
+}

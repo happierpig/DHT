@@ -6,6 +6,19 @@ import (
 	"net"
 )
 
+var (
+	localAddress string
+	calculateMod *big.Int
+	base         *big.Int
+)
+
+func init() {
+	//localAddress = GetLocalAddress()
+	localAddress = "127.0.0.1"
+	base = big.NewInt(2)
+	calculateMod = new(big.Int).Exp(base, big.NewInt(160), nil)
+}
+
 func ConsistentHash(raw string) *big.Int {
 	hash := sha1.New()
 	hash.Write([]byte(raw))
@@ -44,26 +57,26 @@ func GetLocalAddress() string {
 	return localaddress
 }
 
-//contain:mode true -- ( ]   mode false -- ( )
+// contain:mode true -- ( ]   mode false -- ( )
 func contain(target, start, end *big.Int, mode bool) bool {
-	if mode {
-		if end.Cmp(start) == 0 {
-			return true
-		}
-		if end.Cmp(start) > 0 {
-			return (target.Cmp(start) > 0) && (end.Cmp(target) >= 0)
-		} else if end.Cmp(start) < 0 {
-			return (target.Cmp(start) > 0) || (end.Cmp(target) >= 0)
+	if end.Cmp(start) > 0 {
+		if mode {
+			return (end.Cmp(target) == 0) || ((target.Cmp(start) > 0) && (end.Cmp(target) > 0))
+		} else {
+			return (target.Cmp(start) > 0) && (end.Cmp(target) > 0)
 		}
 	} else {
-		if end.Cmp(start) == 0 {
-			return false
-		}
-		if end.Cmp(start) > 0 {
-			return (target.Cmp(start) > 0) && (end.Cmp(target) > 0)
-		} else if end.Cmp(start) < 0 {
-			return (target.Cmp(start) > 0) || (end.Cmp(target) > 0)
+		if mode {
+			return (end.Cmp(target) == 0) || (end.Cmp(target) > 0) || (target.Cmp(start) > 0)
+		} else {
+			return (end.Cmp(target) > 0) || (target.Cmp(start) > 0)
 		}
 	}
-	return false
+}
+
+// calculateID return (raw + 2 ^ delt) % 2 ^ (160)
+func calculateID(raw *big.Int, delt int) *big.Int {
+	d := new(big.Int).Exp(base, big.NewInt(int64(delt)), nil)
+	ans := new(big.Int).Add(raw, d)
+	return new(big.Int).Mod(ans, calculateMod)
 }
