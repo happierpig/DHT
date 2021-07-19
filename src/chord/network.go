@@ -53,11 +53,12 @@ func GetClient(address string) (*rpc.Client, error) {
 		case <-ch:
 			if err == nil {
 				return client, nil
+			} else {
+				return nil, err
 			}
-			// try many times to avoid that
 		case <-time.After(waitTime):
 			err = errors.New("Timeout")
-			log.Warnln("<GetClient> Timeout to ", address)
+			log.Infoln("<GetClient> Timeout to ", address)
 		}
 	}
 	return nil, err
@@ -66,7 +67,8 @@ func GetClient(address string) (*rpc.Client, error) {
 func CheckOnline(address string) bool {
 	client, err := GetClient(address)
 	if err != nil {
-		log.Infoln("<CheckOnline> Ping Fail in ", address, "error: ", err)
+		//todo:maybe
+		log.Infoln("<CheckOnline> Ping Fail in ", address, "because : ", err)
 		return false
 	}
 	if client != nil {

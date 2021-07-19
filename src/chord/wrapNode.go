@@ -43,3 +43,11 @@ func (this *WrapNode) GetData(key string, value *string) error {
 func (this *WrapNode) DeleteData(key string, _ *string) error {
 	return this.node.delete_data(key)
 }
+
+func (this *WrapNode) HereditaryData(predeAddr *big.Int, dataSet *map[string]string) error {
+	return this.node.hereditary_data(predeAddr, dataSet)
+}
+
+func (this *WrapNode) InheritData(_ *string, dataSet *map[string]string) error {
+	return this.node.inherit_data(dataSet)
+}

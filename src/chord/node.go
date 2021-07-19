@@ -84,6 +84,11 @@ func (this *Node) Join(addr string) bool {
 		this.successorList[i] = temp[i-1]
 	}
 	this.rwLock.Unlock()
+	err = RemoteCall(succAddr, "WrapNode.HereditaryData", this.ID, &this.dataSet)
+	if err != nil {
+		log.Errorln("<Join> Fail to Join ,Can't share Data: ", err)
+		return false
+	}
 	this.background()
 	return true
 }
@@ -100,8 +105,19 @@ func (this *Node) Quit() {
 	var succAddr string
 	var occupy string
 	this.first_online_successor(&succAddr)
-	RemoteCall(succAddr, "WrapNode.CheckPredecessor", 2021, &occupy)
-	RemoteCall(this.predecessor, "WrapNode.Stablize", 2021, &occupy)
+	err = RemoteCall(succAddr, "WrapNode.InheritData", &occupy, &this.dataSet)
+	if err != nil {
+		log.Errorln("<Quit.InheritData> Error : ", err)
+	}
+	err = RemoteCall(succAddr, "WrapNode.CheckPredecessor", 2021, &occupy)
+	if err != nil {
+		log.Errorln("<Quit.CheckPredecessor> Error : ", err)
+	}
+	err = RemoteCall(this.predecessor, "WrapNode.Stablize", 2021, &occupy)
+	if err != nil {
+		log.Errorln("<Quit.Stablize> Error : ", err)
+	}
+	this.dataSet = make(map[string]string)
 	log.Infoln("<Quit> ", this.address, " Quit Successfully ;)")
 }
 
@@ -377,4 +393,27 @@ func (this *Node) delete_data(key string) error {
 	} else {
 		return errors.New("<delete_data> Unreachable Data")
 	}
+}
+
+func (this *Node) hereditary_data(predeAddr *big.Int, dataSet *map[string]string) error { // join
+	this.dataLock.Lock()
+	for k, v := range this.dataSet {
+		if !contain(ConsistentHash(k), predeAddr, this.ID, true) {
+			(*dataSet)[k] = v
+			delete(this.dataSet, k)
+		}
+	}
+	this.dataLock.Unlock()
+	log.Infoln("<hereditary_data> Successfully pass data from ", this.address)
+	return nil
+}
+
+func (this *Node) inherit_data(dataSet *map[string]string) error {
+	this.dataLock.Lock()
+	for k, v := range *dataSet {
+		this.dataSet[k] = v
+	}
+	this.dataLock.Unlock()
+	log.Infoln("<inherit_data> Successfully pass data to ", this.address)
+	return nil
 }
