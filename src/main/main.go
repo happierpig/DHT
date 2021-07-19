@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"os"
 	"time"
@@ -10,6 +12,7 @@ import (
 var (
 	help     bool
 	testName string
+	f        *os.File
 )
 
 func init() {
@@ -23,11 +26,21 @@ func init() {
 	//	flag.Usage()
 	//	os.Exit(0)
 	//}
+
 	testName = "all"
+	var err error
+	f, err = os.Create("log.txt")
+	if err != nil {
+		fmt.Println("fail to open log file")
+	}
+	log.SetOutput(f)
+
 	rand.Seed(time.Now().UnixNano())
 }
 
 func main() {
+	defer f.Close()
+
 	_, _ = yellow.Println("Welcome to DHT-2020 Test Program!\n")
 	var basicFailRate float64
 	var forceQuitFailRate float64

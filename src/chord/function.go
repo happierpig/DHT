@@ -25,7 +25,7 @@ func init() {
 	localAddress = "127.0.0.1"
 	base = big.NewInt(2)
 	calculateMod = new(big.Int).Exp(base, big.NewInt(160), nil)
-	timeCut = 200 * time.Millisecond
+	timeCut = 50 * time.Millisecond
 	waitTime = 250 * time.Millisecond
 }
 

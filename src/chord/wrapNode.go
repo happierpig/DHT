@@ -44,10 +44,10 @@ func (this *WrapNode) DeleteData(key string, _ *string) error {
 	return this.node.delete_data(key)
 }
 
-func (this *WrapNode) HereditaryData(predeAddr *big.Int, dataSet *map[string]string) error {
+func (this *WrapNode) HereditaryData(predeAddr string, dataSet *map[string]string) error {
 	return this.node.hereditary_data(predeAddr, dataSet)
 }
 
-func (this *WrapNode) InheritData(_ *string, dataSet *map[string]string) error {
+func (this *WrapNode) InheritData(dataSet *map[string]string, _ *string) error { // bug !!: input is input isn't output
 	return this.node.inherit_data(dataSet)
 }

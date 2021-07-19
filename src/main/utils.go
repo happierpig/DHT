@@ -69,7 +69,8 @@ var (
 )
 
 func init() {
-	localAddress = GetLocalAddress()
+	//localAddress = GetLocalAddress()
+	localAddress = "127.0.0.1"
 }
 
 // function to get local address(ip address)
