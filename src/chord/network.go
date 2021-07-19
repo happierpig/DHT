@@ -14,6 +14,22 @@ type network struct {
 	nodePtr *WrapNode
 }
 
+func MyAccept(server *rpc.Server, lis net.Listener, ptr *Node) { // used for closing listener
+	for {
+		conn, err := lis.Accept()
+		select {
+		case <-ptr.QuitSignal:
+			return
+		default:
+			if err != nil {
+				log.Print("rpc.Serve: accept:", err.Error())
+				return
+			}
+			go server.ServeConn(conn)
+		}
+	}
+}
+
 func (this *network) Init(address string, ptr *Node) error {
 	//初始化一个server对象
 	this.serv = rpc.NewServer()
@@ -32,7 +48,7 @@ func (this *network) Init(address string, ptr *Node) error {
 		return err1
 	}
 	log.Infof("<RPC Init> service start success in %s\n", address)
-	go this.serv.Accept(this.lis)
+	go MyAccept(this.serv, this.lis, this.nodePtr.node)
 	return nil
 }
 
@@ -67,7 +83,7 @@ func GetClient(address string) (*rpc.Client, error) {
 func CheckOnline(address string) bool {
 	client, err := GetClient(address)
 	if err != nil {
-		//todo:maybe
+		//todo:maybe error
 		log.Infoln("<CheckOnline> Ping Fail in ", address, "because : ", err)
 		return false
 	}
@@ -98,12 +114,13 @@ func RemoteCall(targetNode string, funcClass string, input interface{}, result i
 		log.Infoln("<RemoteCall> in ", targetNode, " with ", funcClass, " success!")
 		return nil
 	} else {
-		log.Errorln("<RemoteCall> in ", targetNode, " with ", funcClass, " fail!")
+		log.Errorln("<RemoteCall> in ", targetNode, " with ", funcClass, " fail because : ", err2)
 		return err2
 	}
 }
 
 func (this *network) ShutDown() error {
+	this.nodePtr.node.QuitSignal <- true
 	err := this.lis.Close()
 	if err != nil {
 		log.Errorln("<ShutDown> Fail to close the network in ", this.nodePtr.node.address)

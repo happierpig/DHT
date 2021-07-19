@@ -17,6 +17,7 @@ type Node struct {
 	ID      *big.Int // NewNode()-> Init()
 
 	conRoutineFlag bool // Init() / Run()
+	QuitSignal     chan bool
 
 	successorList [successorListSize]string
 	predecessor   string
@@ -36,6 +37,7 @@ func (this *Node) Init(port int) {
 	this.ID = ConsistentHash(this.address)
 	this.conRoutineFlag = false
 	this.dataSet = make(map[string]string)
+	this.QuitSignal = make(chan bool, 2)
 }
 
 func (this *Node) Run() {
@@ -51,6 +53,8 @@ func (this *Node) Run() {
 }
 
 func (this *Node) Create() {
+	this.dataSet = make(map[string]string)
+	this.QuitSignal = make(chan bool, 2)
 	this.predecessor = ""
 	this.successorList[0] = this.address
 	this.fingerTable[0] = this.address
@@ -118,7 +122,10 @@ func (this *Node) Quit() {
 	if err != nil {
 		log.Errorln("<Quit.Stablize> Error : ", err)
 	}
+	this.dataLock.Lock()
 	this.dataSet = make(map[string]string)
+	this.QuitSignal = make(chan bool, 2)
+	this.dataLock.Unlock()
 	log.Infoln("<Quit> ", this.address, " Quit Successfully ;)")
 	//fmt.Println("[debug] ",this.address," Quit Successfully") // debug
 }
@@ -131,6 +138,8 @@ func (this *Node) ForceQuit() {
 	this.rwLock.Lock()
 	this.conRoutineFlag = false
 	this.next = 1
+	this.dataSet = make(map[string]string)
+	this.QuitSignal = make(chan bool, 2)
 	this.rwLock.Unlock()
 	log.Infoln("<ForceQuit> ", this.address, " Quit Successfully ;)")
 }
