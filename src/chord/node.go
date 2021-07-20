@@ -23,9 +23,12 @@ type Node struct {
 	predecessor   string
 	fingerTable   [hashBitsSize]string
 
-	rwLock   sync.RWMutex
-	dataSet  map[string]string
-	dataLock sync.RWMutex
+	rwLock sync.RWMutex
+
+	dataSet    map[string]string
+	dataLock   sync.RWMutex
+	backupSet  map[string]string
+	backupLock sync.RWMutex
 
 	station *network
 
@@ -36,8 +39,7 @@ func (this *Node) Init(port int) {
 	this.address = fmt.Sprintf("%s:%d", localAddress, port)
 	this.ID = ConsistentHash(this.address)
 	this.conRoutineFlag = false
-	this.dataSet = make(map[string]string)
-	this.QuitSignal = make(chan bool, 2)
+	this.reset()
 }
 
 func (this *Node) Run() {
@@ -53,8 +55,6 @@ func (this *Node) Run() {
 }
 
 func (this *Node) Create() {
-	this.dataSet = make(map[string]string)
-	this.QuitSignal = make(chan bool, 2)
 	this.predecessor = ""
 	this.successorList[0] = this.address
 	this.fingerTable[0] = this.address
@@ -94,7 +94,7 @@ func (this *Node) Join(addr string) bool {
 		return false
 	}
 	this.background()
-	//fmt.Println("[debug] ",this.address," Join Successfully") // debug
+	fmt.Println("[debug] ", this.address, " Join Successfully") // debug
 	return true
 }
 
@@ -103,10 +103,11 @@ func (this *Node) Quit() {
 	if err != nil {
 		log.Errorln("<Quit> fail to quit in ", this.address)
 	}
+
 	this.rwLock.Lock()
 	this.conRoutineFlag = false // important
-	this.next = 1
 	this.rwLock.Unlock()
+
 	var succAddr string
 	var occupy string
 	this.first_online_successor(&succAddr)
@@ -122,12 +123,9 @@ func (this *Node) Quit() {
 	if err != nil {
 		log.Errorln("<Quit.Stablize> Error : ", err)
 	}
-	this.dataLock.Lock()
-	this.dataSet = make(map[string]string)
-	this.QuitSignal = make(chan bool, 2)
-	this.dataLock.Unlock()
+	this.reset()
 	log.Infoln("<Quit> ", this.address, " Quit Successfully ;)")
-	//fmt.Println("[debug] ",this.address," Quit Successfully") // debug
+	fmt.Println("[debug] ", this.address, " Quit Successfully") // debug
 }
 
 func (this *Node) ForceQuit() {
@@ -137,11 +135,10 @@ func (this *Node) ForceQuit() {
 	}
 	this.rwLock.Lock()
 	this.conRoutineFlag = false
-	this.next = 1
-	this.dataSet = make(map[string]string)
-	this.QuitSignal = make(chan bool, 2)
 	this.rwLock.Unlock()
+	this.reset()
 	log.Infoln("<ForceQuit> ", this.address, " Quit Successfully ;)")
+	fmt.Println("[debug] ", this.address, "Force Quit Successfully") // debug
 }
 
 func (this *Node) Ping(addr string) bool {
@@ -376,7 +373,7 @@ func (this *Node) store_data(dataPair Pair) error {
 	this.dataLock.Lock()
 	this.dataSet[dataPair.Key] = dataPair.Value
 	this.dataLock.Unlock()
-	//fmt.Println("[debug] Store ",dataPair," into ",this.address) // debug
+	fmt.Println("[debug] Store ", dataPair, " into ", this.address) // debug
 	return nil
 }
 
@@ -389,7 +386,7 @@ func (this *Node) get_data(key string, value *string) error {
 		return nil
 	} else {
 		*value = ""
-		//fmt.Println("[debug] Unsuccessfully Get ",key," from ",this.address) // debug
+		fmt.Println("[debug] Unsuccessfully Get ", key, " from ", this.address) // debug
 		return errors.New("<get_data> Unreachable Data")
 	}
 }
@@ -405,7 +402,7 @@ func (this *Node) delete_data(key string) error {
 		//fmt.Println("[debug] Successfully Delete ",key," from ",this.address) // debug
 		return nil
 	} else {
-		//fmt.Println("[debug] Unsuccessfully Delete ",key," from ",this.address) // debug
+		fmt.Println("[debug] Unsuccessfully Delete ", key, " from ", this.address) // debug
 		return errors.New("<delete_data> Unreachable Data")
 	}
 }
@@ -416,7 +413,7 @@ func (this *Node) hereditary_data(predeAddr string, dataSet *map[string]string) 
 		if !contain(ConsistentHash(k), ConsistentHash(predeAddr), this.ID, true) {
 			(*dataSet)[k] = v
 			delete(this.dataSet, k)
-			//fmt.Println("[debug] Successfully Move ",k," from ",this.address," to ",predeAddr) // debug
+			fmt.Println("[debug] Successfully Move ", k, " from ", this.address, " to ", predeAddr) // debug
 		}
 	}
 	this.dataLock.Unlock()
@@ -428,9 +425,22 @@ func (this *Node) inherit_data(dataSet *map[string]string) error {
 	this.dataLock.Lock()
 	for k, v := range *dataSet {
 		this.dataSet[k] = v
-		//fmt.Println("[debug] Successfully inherit ",k," to ",this.address) // debug
+		fmt.Println("[debug] Successfully inherit ", k, " to ", this.address) // debug
 	}
 	this.dataLock.Unlock()
 	log.Infoln("<inherit_data> Successfully pass data to ", this.address)
 	return nil
+}
+
+func (this *Node) reset() {
+	this.dataLock.Lock()
+	this.dataSet = make(map[string]string)
+	this.dataLock.Unlock()
+	this.QuitSignal = make(chan bool, 2)
+	this.backupLock.Lock()
+	this.backupSet = make(map[string]string)
+	this.backupLock.Unlock()
+	this.rwLock.Lock()
+	this.next = 1
+	this.rwLock.Unlock()
 }
