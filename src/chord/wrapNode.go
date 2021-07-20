@@ -67,3 +67,7 @@ func (this *WrapNode) AddBackup(dataSet *map[string]string, _ *string) error {
 func (this *WrapNode) SubBackup(dataSet *map[string]string, _ *string) error {
 	return this.node.sub_backup(dataSet)
 }
+
+func (this *WrapNode) GenerateBackup(_ *string, dataSet *map[string]string) error {
+	return this.node.generate_backup(dataSet)
+}

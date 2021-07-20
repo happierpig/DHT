@@ -90,15 +90,19 @@ func (this *Node) Join(addr string) bool {
 	this.rwLock.Unlock()
 	err = RemoteCall(succAddr, "WrapNode.HereditaryData", this.address, &this.dataSet)
 	if err != nil {
-		log.Errorln("<Join> Fail to Join ,Can't share Data: ", err)
+		log.Errorln("<Join> Fail to Join ,Can't share Data and Backup: ", err)
 		return false
 	}
 	this.background()
-	fmt.Println("[debug] ", this.address, " Join Successfully") // debug
+	//fmt.Println("[debug] ", this.address, " Join Successfully") // debug
 	return true
 }
 
 func (this *Node) Quit() {
+	if !this.conRoutineFlag {
+		return
+	}
+	log.Warningln("<Quit> Begin to quit ", this.address)
 	err := this.station.ShutDown()
 	if err != nil {
 		log.Errorln("<Quit> fail to quit in ", this.address)
@@ -109,23 +113,18 @@ func (this *Node) Quit() {
 	this.rwLock.Unlock()
 
 	var succAddr string
-	var occupy string
 	this.first_online_successor(&succAddr)
-	err = RemoteCall(succAddr, "WrapNode.InheritData", &this.dataSet, &occupy)
-	if err != nil {
-		log.Errorln("<Quit.InheritData> Error : ", err)
-	}
-	err = RemoteCall(succAddr, "WrapNode.CheckPredecessor", 2021, &occupy)
+	err = RemoteCall(succAddr, "WrapNode.CheckPredecessor", 2021, nil)
 	if err != nil {
 		log.Errorln("<Quit.CheckPredecessor> Error : ", err)
 	}
-	err = RemoteCall(this.predecessor, "WrapNode.Stablize", 2021, &occupy)
+	err = RemoteCall(this.predecessor, "WrapNode.Stablize", 2021, nil)
 	if err != nil {
 		log.Errorln("<Quit.Stablize> Error : ", err)
 	}
 	this.reset()
 	log.Infoln("<Quit> ", this.address, " Quit Successfully ;)")
-	fmt.Println("[debug] ", this.address, " Quit Successfully") // debug
+	//fmt.Println("[debug] ", this.address, " Quit Successfully") // debug
 }
 
 func (this *Node) ForceQuit() {
@@ -138,7 +137,7 @@ func (this *Node) ForceQuit() {
 	this.rwLock.Unlock()
 	this.reset()
 	log.Infoln("<ForceQuit> ", this.address, " Quit Successfully ;)")
-	fmt.Println("[debug] ", this.address, "Force Quit Successfully") // debug
+	//fmt.Println("[debug] ", this.address, "Force Quit Successfully") // debug
 }
 
 func (this *Node) Ping(addr string) bool {
@@ -156,9 +155,8 @@ func (this *Node) Put(key string, value string) bool {
 		log.Errorln("<Put> Fail to Find Key's Successor...")
 		return false
 	}
-	var occupy string
 	var dataPair Pair = Pair{key, value}
-	err = RemoteCall(targetAddr, "WrapNode.StoreData", dataPair, &occupy)
+	err = RemoteCall(targetAddr, "WrapNode.StoreData", dataPair, nil)
 	if err != nil {
 		log.Errorln("<Put> Fail to Put Data into Target Node in ", targetAddr, " | error: ", err)
 		return false
@@ -199,8 +197,7 @@ func (this *Node) Delete(key string) bool {
 		log.Errorln("<Delete> Fail to Find Key's Successor...")
 		return false
 	}
-	var occupy string
-	err = RemoteCall(targetAddr, "WrapNode.DeleteData", key, &occupy)
+	err = RemoteCall(targetAddr, "WrapNode.DeleteData", key, nil)
 	if err != nil {
 		log.Errorln("<Delete> Fail to Delete Data from Target Node in ", targetAddr, " | error: ", err)
 		return false
@@ -298,8 +295,7 @@ func (this *Node) stabilize() {
 		this.successorList[i] = temp[i-1]
 	}
 	this.rwLock.Unlock()
-	var occupy string
-	err = RemoteCall(newSucAddr, "WrapNode.Notify", this.address, &occupy)
+	err = RemoteCall(newSucAddr, "WrapNode.Notify", this.address, nil)
 	if err != nil {
 		log.Errorln("<stabilize> Fail to notify ,Can't get call successor :  ", err)
 		return
@@ -315,6 +311,10 @@ func (this *Node) notify(instructor string) error {
 		this.rwLock.Lock()
 		this.predecessor = instructor
 		this.rwLock.Unlock()
+		err := RemoteCall(instructor, "WrapNode.GenerateBackup", nil, &this.backupSet)
+		if err != nil {
+			log.Errorln("<notify> Fail to get backup from predecessor ", instructor, " because ", err)
+		}
 		log.Infoln("<notify> Change ", this.address, " Predecessor to ", instructor)
 	}
 	return nil
@@ -325,6 +325,7 @@ func (this *Node) check_predecessor() error {
 		this.rwLock.Lock()
 		this.predecessor = ""
 		this.rwLock.Unlock()
+		this.apply_backup()
 		log.Infoln("<check_predecessor> Find failed predecessor :)")
 	}
 	return nil
@@ -373,11 +374,14 @@ func (this *Node) store_data(dataPair Pair) error {
 	this.dataLock.Lock()
 	this.dataSet[dataPair.Key] = dataPair.Value
 	this.dataLock.Unlock()
-	fmt.Println("[debug] Store ", dataPair, " into ", this.address) // debug
-
-	//err:=RemoteCall()
-
-	return nil
+	//fmt.Println("[debug] Store ", dataPair, " into ", this.address) // debug
+	var succAddr string
+	this.first_online_successor(&succAddr)
+	err := RemoteCall(succAddr, "WrapNode.StoreBackup", dataPair, nil)
+	if err != nil {
+		log.Errorln("<store_data>Fail to store backup in ", this.address)
+	}
+	return err
 }
 
 func (this *Node) get_data(key string, value *string) error {
@@ -389,7 +393,7 @@ func (this *Node) get_data(key string, value *string) error {
 		return nil
 	} else {
 		*value = ""
-		fmt.Println("[debug] Unsuccessfully Get ", key, " from ", this.address) // debug
+		//fmt.Println("[debug] Unsuccessfully Get ", key, " from ", this.address) // debug
 		return errors.New("<get_data> Unreachable Data")
 	}
 }
@@ -402,25 +406,43 @@ func (this *Node) delete_data(key string) error {
 	}
 	this.dataLock.Unlock()
 	if ok {
-		//fmt.Println("[debug] Successfully Delete ",key," from ",this.address) // debug
+		var succAddr string
+		this.first_online_successor(&succAddr)
+		err := RemoteCall(succAddr, "WrapNode.DeleteBackup", key, nil)
+		if err != nil {
+			log.Errorln("<delete_data> Fail to delete backup in ", this.address)
+		}
 		return nil
 	} else {
-		fmt.Println("[debug] Unsuccessfully Delete ", key, " from ", this.address) // debug
+		//fmt.Println("[debug] Unsuccessfully Delete ", key, " from ", this.address) // debug
 		return errors.New("<delete_data> Unreachable Data")
 	}
 }
 
 func (this *Node) hereditary_data(predeAddr string, dataSet *map[string]string) error { // join
-	//todo: directly modify predecessor
+	//avoid the time between notify
+	this.backupLock.Lock()
 	this.dataLock.Lock()
+	this.backupSet = make(map[string]string)
 	for k, v := range this.dataSet {
 		if !contain(ConsistentHash(k), ConsistentHash(predeAddr), this.ID, true) {
 			(*dataSet)[k] = v
+			this.backupSet[k] = v
 			delete(this.dataSet, k)
-			fmt.Println("[debug] Successfully Move ", k, " from ", this.address, " to ", predeAddr) // debug
+			//fmt.Println("[debug] Successfully Move ", k, " from ", this.address, " to ", predeAddr) // debug
 		}
 	}
+	this.backupLock.Unlock()
 	this.dataLock.Unlock()
+	var succAddr string
+	this.first_online_successor(&succAddr)
+	err := RemoteCall(succAddr, "WrapNode.SubBackup", dataSet, nil)
+	if err != nil {
+		log.Errorln("<hereditary_data> fail to reduce successors' backup because :", err)
+	}
+	this.rwLock.Lock()
+	this.predecessor = predeAddr // that simplify the notify
+	this.rwLock.Unlock()
 	log.Infoln("<hereditary_data> Successfully pass data from ", this.address)
 	return nil
 }
@@ -429,7 +451,7 @@ func (this *Node) inherit_data(dataSet *map[string]string) error {
 	this.dataLock.Lock()
 	for k, v := range *dataSet {
 		this.dataSet[k] = v
-		fmt.Println("[debug] Successfully inherit ", k, " to ", this.address) // debug
+		//fmt.Println("[debug] Successfully inherit ", k, " to ", this.address) // debug
 	}
 	this.dataLock.Unlock()
 	log.Infoln("<inherit_data> Successfully pass data to ", this.address)
@@ -466,7 +488,7 @@ func (this *Node) delete_backup(key string) error {
 	if ok {
 		return nil
 	} else {
-		fmt.Println("[debug] Unsuccessfully Delete Backup ", key, " from ", this.address) // debug
+		//fmt.Println("[debug] Unsuccessfully Delete Backup ", key, " from ", this.address) // debug
 		return errors.New("<delete_backup> Unreachable Data")
 	}
 }
@@ -500,11 +522,12 @@ func (this *Node) generate_backup(sucBackup *map[string]string) error { // 'this
 }
 
 func (this *Node) apply_backup() error {
-	this.backupLock.Lock()
+	this.backupLock.RLock()
 	this.dataLock.Lock()
 	for k, v := range this.backupSet {
 		this.dataSet[k] = v
 	}
+	this.backupLock.RUnlock()
 	this.dataLock.Unlock()
 	var succAddr string
 	err := this.first_online_successor(&succAddr)
@@ -512,12 +535,12 @@ func (this *Node) apply_backup() error {
 		log.Errorln("<apply_backup> Fail to Find Successor in ", this.address)
 		return err
 	}
-	var occupy string
-	err = RemoteCall(succAddr, "WrapNode.AddBackup", &this.backupSet, &occupy)
+	err = RemoteCall(succAddr, "WrapNode.AddBackup", &this.backupSet, nil)
 	if err != nil {
 		log.Errorln("<apply_backup> Fail to Update ", this.address, "'s Successor's Backup because ", err)
 		return err
 	}
+	this.backupLock.Lock()
 	this.backupSet = make(map[string]string)
 	this.backupLock.Unlock()
 	log.Infoln("<apply_backup> Successfully apply backup in ", this.address)
