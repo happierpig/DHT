@@ -209,7 +209,7 @@ func (this *Node) Delete(key string) bool {
 	return true
 }
 
-// below are private functions todo(FirstValidSuccessor)
+// below are private functions
 func (this *Node) find_successor(target *big.Int, result *string) error {
 	var succAddr string
 	this.first_online_successor(&succAddr)
@@ -269,6 +269,10 @@ func (this *Node) first_online_successor(result *string) error {
 	return errors.New("List Break")
 }
 
+/* stabilize:
+1. when new Node join
+2. when quit or force quit
+*/
 func (this *Node) stabilize() {
 	var succPredAddr string
 	var newSucAddr string
@@ -456,7 +460,7 @@ func (this *Node) hereditary_data(predeAddr string, dataSet *map[string]string) 
 	return nil
 }
 
-func (this *Node) inherit_data(dataSet *map[string]string) error {
+func (this *Node) inherit_data(dataSet *map[string]string) error { //used for non-force quit
 	this.dataLock.Lock()
 	for k, v := range *dataSet {
 		this.dataSet[k] = v
