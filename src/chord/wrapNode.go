@@ -27,7 +27,7 @@ func (this *WrapNode) CheckPredecessor(_ int, _ *string) error {
 	return this.node.check_predecessor()
 }
 
-func (this *WrapNode) Stablize(_ int, _ *string) error {
+func (this *WrapNode) Stabilize(_ int, _ *string) error {
 	this.node.stabilize()
 	return nil
 }

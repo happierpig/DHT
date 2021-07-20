@@ -60,7 +60,7 @@ func GetClient(address string) (*rpc.Client, error) {
 	var client *rpc.Client
 	var err error
 	ch := make(chan error)
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 5; i++ {
 		go func() {
 			client, err = rpc.Dial("tcp", address)
 			ch <- err
