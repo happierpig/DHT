@@ -374,6 +374,9 @@ func (this *Node) store_data(dataPair Pair) error {
 	this.dataSet[dataPair.Key] = dataPair.Value
 	this.dataLock.Unlock()
 	fmt.Println("[debug] Store ", dataPair, " into ", this.address) // debug
+
+	//err:=RemoteCall()
+
 	return nil
 }
 
@@ -408,6 +411,7 @@ func (this *Node) delete_data(key string) error {
 }
 
 func (this *Node) hereditary_data(predeAddr string, dataSet *map[string]string) error { // join
+	//todo: directly modify predecessor
 	this.dataLock.Lock()
 	for k, v := range this.dataSet {
 		if !contain(ConsistentHash(k), ConsistentHash(predeAddr), this.ID, true) {
@@ -443,4 +447,79 @@ func (this *Node) reset() {
 	this.rwLock.Lock()
 	this.next = 1
 	this.rwLock.Unlock()
+}
+
+func (this *Node) store_backup(dataPair Pair) error {
+	this.backupLock.Lock()
+	this.backupSet[dataPair.Key] = dataPair.Value
+	this.backupLock.Unlock()
+	return nil
+}
+
+func (this *Node) delete_backup(key string) error {
+	this.backupLock.Lock()
+	_, ok := this.backupSet[key]
+	if ok {
+		delete(this.backupSet, key)
+	}
+	this.backupLock.Unlock()
+	if ok {
+		return nil
+	} else {
+		fmt.Println("[debug] Unsuccessfully Delete Backup ", key, " from ", this.address) // debug
+		return errors.New("<delete_backup> Unreachable Data")
+	}
+}
+
+func (this *Node) add_backup(dataSet *map[string]string) error {
+	this.backupLock.Lock()
+	for k, v := range *dataSet {
+		this.backupSet[k] = v
+	}
+	this.backupLock.Unlock()
+	return nil
+}
+
+func (this *Node) sub_backup(dataSet *map[string]string) error {
+	this.backupLock.Lock()
+	for k, _ := range *dataSet {
+		delete(this.backupSet, k)
+	}
+	this.backupLock.Unlock()
+	return nil
+}
+
+func (this *Node) generate_backup(sucBackup *map[string]string) error { // 'this' node means predecessor and sucBackup stores 'this' dataSet
+	this.dataLock.RLock()
+	*sucBackup = make(map[string]string)
+	for k, v := range this.dataSet {
+		(*sucBackup)[k] = v
+	}
+	this.dataLock.RUnlock()
+	return nil
+}
+
+func (this *Node) apply_backup() error {
+	this.backupLock.Lock()
+	this.dataLock.Lock()
+	for k, v := range this.backupSet {
+		this.dataSet[k] = v
+	}
+	this.dataLock.Unlock()
+	var succAddr string
+	err := this.first_online_successor(&succAddr)
+	if err != nil {
+		log.Errorln("<apply_backup> Fail to Find Successor in ", this.address)
+		return err
+	}
+	var occupy string
+	err = RemoteCall(succAddr, "WrapNode.AddBackup", &this.backupSet, &occupy)
+	if err != nil {
+		log.Errorln("<apply_backup> Fail to Update ", this.address, "'s Successor's Backup because ", err)
+		return err
+	}
+	this.backupSet = make(map[string]string)
+	this.backupLock.Unlock()
+	log.Infoln("<apply_backup> Successfully apply backup in ", this.address)
+	return nil
 }

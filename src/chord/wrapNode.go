@@ -51,3 +51,19 @@ func (this *WrapNode) HereditaryData(predeAddr string, dataSet *map[string]strin
 func (this *WrapNode) InheritData(dataSet *map[string]string, _ *string) error { // bug !!: input is input isn't output
 	return this.node.inherit_data(dataSet)
 }
+
+func (this *WrapNode) StoreBackup(dataPair Pair, _ *string) error {
+	return this.node.store_backup(dataPair)
+}
+
+func (this *WrapNode) DeleteBackup(key string, _ *string) error {
+	return this.node.delete_backup(key)
+}
+
+func (this *WrapNode) AddBackup(dataSet *map[string]string, _ *string) error {
+	return this.node.add_backup(dataSet)
+}
+
+func (this *WrapNode) SubBackup(dataSet *map[string]string, _ *string) error {
+	return this.node.sub_backup(dataSet)
+}
