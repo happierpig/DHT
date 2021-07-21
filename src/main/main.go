@@ -27,7 +27,7 @@ func init() {
 	//	os.Exit(0)
 	//}
 
-	testName = "all"
+	testName = "advance"
 	var err error
 	f, err = os.Create("log.txt")
 	if err != nil {
