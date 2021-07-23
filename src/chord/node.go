@@ -319,7 +319,7 @@ func (this *Node) notify(instructor string) error {
 		this.rwLock.Lock()
 		this.predecessor = instructor
 		this.rwLock.Unlock()
-		this.apply_backup()
+		//this.apply_backup()
 		var occupy string
 		err := RemoteCall(instructor, "WrapNode.GenerateBackup", &occupy, &this.backupSet)
 		if err != nil {
@@ -449,7 +449,7 @@ func (this *Node) hereditary_data(predeAddr string, dataSet *map[string]string) 
 	var occupy string
 	var succAddr string
 	this.first_online_successor(&succAddr)
-	err := RemoteCall(succAddr, "WrapNode.SubBackup", dataSet, &occupy)
+	err := RemoteCall(succAddr, "WrapNode.SubBackup", *dataSet, &occupy)
 	if err != nil {
 		log.Errorln("<hereditary_data> fail to reduce successors' backup because :", err)
 	}
@@ -506,18 +506,18 @@ func (this *Node) delete_backup(key string) error {
 	}
 }
 
-func (this *Node) add_backup(dataSet *map[string]string) error {
+func (this *Node) add_backup(dataSet map[string]string) error {
 	this.backupLock.Lock()
-	for k, v := range *dataSet {
+	for k, v := range dataSet {
 		this.backupSet[k] = v
 	}
 	this.backupLock.Unlock()
 	return nil
 }
 
-func (this *Node) sub_backup(dataSet *map[string]string) error {
+func (this *Node) sub_backup(dataSet map[string]string) error {
 	this.backupLock.Lock()
-	for k, _ := range *dataSet {
+	for k, _ := range dataSet {
 		delete(this.backupSet, k)
 	}
 	this.backupLock.Unlock()
@@ -549,7 +549,7 @@ func (this *Node) apply_backup() error {
 		return err
 	}
 	var occupy string
-	err = RemoteCall(succAddr, "WrapNode.AddBackup", &this.backupSet, &occupy)
+	err = RemoteCall(succAddr, "WrapNode.AddBackup", this.backupSet, &occupy)
 	if err != nil {
 		log.Errorln("<apply_backup> Fail to Update ", this.address, "'s Successor's Backup because ", err)
 		return err

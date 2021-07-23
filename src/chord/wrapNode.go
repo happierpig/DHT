@@ -48,7 +48,7 @@ func (this *WrapNode) HereditaryData(predeAddr string, dataSet *map[string]strin
 	return this.node.hereditary_data(predeAddr, dataSet)
 }
 
-func (this *WrapNode) InheritData(dataSet *map[string]string, _ *string) error { // bug !!: input is input isn't output
+func (this *WrapNode) InheritData(dataSet *map[string]string, _ *string) error { // bug !!: input is input isn't output no-use
 	return this.node.inherit_data(dataSet)
 }
 
@@ -60,11 +60,11 @@ func (this *WrapNode) DeleteBackup(key string, _ *string) error {
 	return this.node.delete_backup(key)
 }
 
-func (this *WrapNode) AddBackup(dataSet *map[string]string, _ *string) error {
+func (this *WrapNode) AddBackup(dataSet map[string]string, _ *string) error {
 	return this.node.add_backup(dataSet)
 }
 
-func (this *WrapNode) SubBackup(dataSet *map[string]string, _ *string) error {
+func (this *WrapNode) SubBackup(dataSet map[string]string, _ *string) error {
 	return this.node.sub_backup(dataSet)
 }
 
