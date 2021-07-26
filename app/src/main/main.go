@@ -25,7 +25,7 @@ func init() {
 func main() {
 	for {
 		var para1, para2, para3, para4 string = "", "", "", ""
-		fmt.Scanln(&para1, &para2, &para3)
+		fmt.Scanln(&para1, &para2, &para3, &para4)
 		if para1 == "join" {
 			ok := myself.Join(para2)
 			if ok {
