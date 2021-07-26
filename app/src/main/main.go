@@ -23,9 +23,9 @@ func init() {
 	myself.Run()
 }
 func main() {
-	var para1, para2 string
 	for {
-		fmt.Scanln(&para1, &para2)
+		var para1, para2, para3 string = "", "", ""
+		fmt.Scanln(&para1, &para2, &para3)
 		if para1 == "join" {
 			ok := myself.Join(para2)
 			if ok {
@@ -33,24 +33,37 @@ func main() {
 			} else {
 				fmt.Println("Fail to Join ", para2)
 			}
+			continue
 		}
 		if para1 == "create" {
 			myself.Create()
 			fmt.Println("Create new network in ", myIP)
+			continue
 		}
 		if para1 == "upload" {
-			Lauch(para2, &myself)
+			err := Lauch(para2, para3, &myself)
+			if err != nil {
+				fmt.Println("Fail to upload ", para2)
+			}
+			continue
 		}
 		if para1 == "download" {
-			download(para2, &myself)
+			err := download(para2, para3, &myself)
+			if err != nil {
+				fmt.Println("Fail to download ", para2)
+			}
+			continue
 		}
 		if para1 == "quit" {
 			myself.Quit()
 			fmt.Println(myIP, " Node Quit")
+			continue
 		}
 		if para1 == "run" {
 			myself.Run()
 			fmt.Println(myIP, "Run successfully")
+			continue
 		}
+		fmt.Println("Unknown instruction :(")
 	}
 }

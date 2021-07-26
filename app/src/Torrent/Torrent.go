@@ -112,7 +112,7 @@ func (bto *bencodeTorrent) ToTorrentFile() (TorrentFile, error) {
 	return t, nil
 }
 
-func MakeTorrentFile(fileName string, ch chan string) error {
+func MakeTorrentFile(fileName string, targetPath string, ch chan string) error {
 	// name(fileName);total length;piece length = 262144 Bytes ;pieces
 	fileState, err := os.Stat(fileName)
 	if err != nil {
@@ -129,7 +129,12 @@ func MakeTorrentFile(fileName string, ch chan string) error {
 		},
 	}
 	tmp.Info.Pieces = <-ch
-	f, _ := os.Create(fileState.Name() + ".torrent")
+	var f *os.File
+	if targetPath == "" {
+		f, _ = os.Create(fileState.Name() + ".torrent")
+	} else {
+		f, _ = os.Create(targetPath + "/" + fileState.Name() + ".torrent")
+	}
 	err = bencode.Marshal(f, tmp)
 	if err != nil {
 		fmt.Println("Fail to Marshal the info")

@@ -18,7 +18,7 @@ type downloadPackage struct {
 	index int
 }
 
-func Lauch(fileName string, node *dhtNode) error {
+func Lauch(fileName string, targetPath string, node *dhtNode) error {
 	content, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		fmt.Errorf("<Lauch> Fail to open the file :(")
@@ -52,10 +52,10 @@ func Lauch(fileName string, node *dhtNode) error {
 			fmt.Println("Upload Finish :)")
 			flag1 = false
 		}
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 	ch3 := make(chan string)
-	go Torrent.MakeTorrentFile(fileName, ch3)
+	go Torrent.MakeTorrentFile(fileName, targetPath, ch3)
 	for flag2 {
 		select {
 		case pack := <-ch2:
@@ -90,7 +90,7 @@ func uploadToNetwork(totalSize int, node *dhtNode, index int, data []byte, ch1 c
 	return
 }
 
-func download(torrentName string, node *dhtNode) error {
+func download(torrentName string, targetPath string, node *dhtNode) error {
 	torrentFile, err := os.Open(torrentName)
 	if err != nil {
 		fmt.Println("Fail to open the .torrent file when try downloading")
@@ -123,7 +123,7 @@ func download(torrentName string, node *dhtNode) error {
 			fmt.Println("Download and Verify Finished ")
 			flag1 = false
 		}
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 	for flag2 {
 		select {
@@ -135,7 +135,13 @@ func download(torrentName string, node *dhtNode) error {
 			}
 			copy(content[l:r], pack.data[:])
 		default:
-			err2 := ioutil.WriteFile(allInfo.Name, content, 0644)
+			var dfile string
+			if targetPath == "" {
+				dfile = allInfo.Name
+			} else {
+				dfile = targetPath + "/" + allInfo.Name
+			}
+			err2 := ioutil.WriteFile(dfile, content, 0644)
 			if err2 != nil {
 				fmt.Println("Fail to write in file due to ", err2)
 				return err2
