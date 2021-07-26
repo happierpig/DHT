@@ -2,6 +2,7 @@ package main
 
 import (
 	"Torrent"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -49,24 +50,41 @@ func Lauch(fileName string, targetPath string, node *dhtNode) error {
 			}
 			go uploadToNetwork(blockNum, node, index, content[l:r], ch1, ch2)
 		case <-time.After(Torrent.TimeWait):
-			fmt.Println("Upload Finish :)")
+			//fmt.Println("Upload Finish :)")
 			flag1 = false
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	ch3 := make(chan string)
-	go Torrent.MakeTorrentFile(fileName, targetPath, ch3)
+	ch3 := make(chan string)              // pieces
+	ch4 := make(chan Torrent.BencodeInfo) // infohash
+	ch5 := make(chan string)              // torrent
+	go Torrent.MakeTorrentFile(fileName, targetPath, ch3, ch4, ch5)
 	for flag2 {
 		select {
 		case pack := <-ch2:
 			index := pack.index
 			copy(pieces[(index-1)*20:index*20], pack.hashes[:])
 		default:
-			fmt.Println("Uploading Finished :)")
+			fmt.Println("Upload Finished :) Start making magnet....")
 			flag2 = false
 		}
 	}
 	ch3 <- string(pieces)
+	torrentInfo := <-ch4
+	torrentContent := <-ch5
+	temp, err := torrentInfo.InfoHash()
+	infoHash := fmt.Sprintf("%x", temp)
+	if err != nil {
+		fmt.Println("Fail to get InfoHash,shut down")
+		return err
+	}
+	ok := myself.Put(infoHash, torrentContent)
+	if !ok {
+		fmt.Println("Fail to upload torrent to DHT network")
+		return errors.New("Put failed")
+	}
+	fmt.Println("Magnet Link Generates Successfully : ")
+	fmt.Println("magnet:?xt=urn:sha1:" + infoHash + "&dn=" + torrentInfo.Name)
 	return nil
 }
 
@@ -175,4 +193,28 @@ func downloadFromNetwork(totalSize int, node *dhtNode, hashSet [20]byte, index i
 	ch2 <- downloadPackage{[]byte(rawData), index}
 	fmt.Println("Downloading ", float64(totalSize-len(ch1))/float64(totalSize)*100, "% ....")
 	return
+}
+
+func downloadByMagnet(rawMagnet string, targetPath string, node *dhtNode) error {
+	raw := []byte(rawMagnet)
+	// sha1: 40 hex number
+	//magnet:?xt=urn:sha1:    [0:20]
+	infoHash := string(raw[20:60])
+	ok, content := (*node).Get(infoHash)
+	if !ok {
+		fmt.Println("Fail to get .torrent by Magnet, maybe no .torrent exists")
+		return errors.New("Fail to get .torrent by Magnet")
+	}
+	err := ioutil.WriteFile("temp.torrent", []byte(content), 0644)
+	defer os.Remove("temp.torrent")
+	if err != nil {
+		fmt.Println("Fail to create temporary file")
+		return errors.New("Fail to create temporary file")
+	}
+	err = download("temp.torrent", targetPath, node)
+	if err != nil {
+		fmt.Println("Fail to download")
+		return err
+	}
+	return nil
 }

@@ -24,7 +24,7 @@ func init() {
 }
 func main() {
 	for {
-		var para1, para2, para3 string = "", "", ""
+		var para1, para2, para3, para4 string = "", "", "", ""
 		fmt.Scanln(&para1, &para2, &para3)
 		if para1 == "join" {
 			ok := myself.Join(para2)
@@ -48,11 +48,20 @@ func main() {
 			continue
 		}
 		if para1 == "download" {
-			err := download(para2, para3, &myself)
-			if err != nil {
-				fmt.Println("Fail to download ", para2)
+			if para2 == "-t" {
+				err := download(para3, para4, &myself)
+				if err != nil {
+					fmt.Println("Fail to download ", err)
+				}
+				continue
 			}
-			continue
+			if para2 == "-m" {
+				err := downloadByMagnet(para3, para4, &myself)
+				if err != nil {
+					fmt.Println("Fail to download ", err)
+				}
+				continue
+			}
 		}
 		if para1 == "quit" {
 			myself.Quit()
