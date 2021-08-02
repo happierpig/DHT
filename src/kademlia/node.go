@@ -9,22 +9,22 @@ import (
 
 func (this *Node) reset() {
 	this.isRunning = false
+	this.table.InitRoutingTable(this.addr.NodeID)
 }
 
 func (this *Node) Init(port int) {
 	this.addr = NewContact(fmt.Sprintf("%s:%d", localAddress, port))
-	this.table.InitRoutingTable(this.addr.nodeID)
 	this.reset()
 }
 
 func (this *Node) Run() {
 	this.station = new(network)
-	err := this.station.Init(this.addr.address, this)
+	err := this.station.Init(this.addr.Address, this)
 	if err != nil {
-		log.Errorln("<Run> Fail to Run ", this.addr.address)
+		log.Errorln("<Run> Fail to Run ", this.addr.Address)
 		return
 	}
-	log.Infoln("<Run> Successfully Run Node in ", this.addr.address)
+	log.Infoln("<Run> Successfully Run Node in ", this.addr.Address)
 	this.isRunning = true
 }
 
@@ -32,16 +32,21 @@ func (this *Node) Join(address string) bool {
 	bootstrap := new(Contact)
 	*bootstrap = NewContact(address)
 	if isOnline := CheckOnline(this, bootstrap); !isOnline {
-		log.Warningln("<Join> Node in ", this.addr.address, " fail to join network in ", address, " for the network is failed")
+		log.Warningln("<Join> Node in ", this.addr.Address, " fail to join network in ", address, " for the network is failed")
 		return false
 	}
 	this.table.Update(bootstrap)
-	this.FindClosestNode(this.addr.nodeID)
+	this.FindClosestNode(this.addr.NodeID)
 	return true
 }
 
+func (this *Node) Quit() {
+	this.station.ShutDown()
+	this.reset()
+}
+
 func (this *Node) Ping(requester Contact) {
-	log.Infoln("<Ping>", this.addr.address, "is Ping by ", requester.address)
+	log.Infoln("<Ping>", this.addr.Address, "is Ping by ", requester.Address)
 }
 
 func (this *Node) FindClosestNode(target ID) []ContactRecord {
@@ -50,20 +55,20 @@ func (this *Node) FindClosestNode(target ID) []ContactRecord {
 	inRun := new(int32)
 	*inRun = 0
 	visit := make(map[string]bool)
-	visit[this.addr.address] = true
+	visit[this.addr.Address] = true
 	index := 0
 	ch := make(chan FindNodeReply, alpha+3)
 	for index < len(pendingList) && *inRun < alpha {
-		tmpReplier := pendingList[index].contact
-		if _, ok := visit[tmpReplier.address]; !ok {
-			visit[tmpReplier.address] = true
+		tmpReplier := pendingList[index].ContactInfo
+		if _, ok := visit[tmpReplier.Address]; !ok {
+			visit[tmpReplier.Address] = true
 			atomic.AddInt32(inRun, 1)
 			go func(Replier *Contact, channel chan FindNodeReply) {
 				var response FindNodeReply
 				err := RemoteCall(this, Replier, "WrapNode.GetClose", FindNodeRequest{this.addr, target}, &response)
 				if err != nil {
 					atomic.AddInt32(inRun, -1)
-					log.Errorln("<FindClosestNode>Fail due to  ", err)
+					log.Warnln("<FindClosestNode> Fail due to  ", err)
 					return
 				}
 				channel <- response
@@ -77,8 +82,8 @@ func (this *Node) FindClosestNode(target ID) []ContactRecord {
 			select {
 			case response := <-ch:
 				atomic.AddInt32(inRun, -1)
-				resultList = append(resultList, ContactRecord{Xor(response.replier.nodeID, target), response.replier})
-				for _, v := range response.content {
+				resultList = append(resultList, ContactRecord{Xor(response.Replier.NodeID, target), response.Replier})
+				for _, v := range response.Content {
 					pendingList = append(pendingList, v)
 				}
 			case <-time.After(WaitTime):
@@ -86,16 +91,16 @@ func (this *Node) FindClosestNode(target ID) []ContactRecord {
 			}
 		}
 		for index < len(pendingList) && *inRun < alpha {
-			tmpReplier := pendingList[index].contact
-			if _, ok := visit[tmpReplier.address]; !ok {
-				visit[tmpReplier.address] = true
+			tmpReplier := pendingList[index].ContactInfo
+			if _, ok := visit[tmpReplier.Address]; !ok {
+				visit[tmpReplier.Address] = true
 				atomic.AddInt32(inRun, 1)
 				go func(Replier *Contact, channel chan FindNodeReply) {
 					var response FindNodeReply
 					err := RemoteCall(this, Replier, "WrapNode.GetClose", FindNodeRequest{this.addr, target}, &response)
 					if err != nil {
 						atomic.AddInt32(inRun, -1)
-						log.Errorln("<FindClosestNode> Fail due to  ", err)
+						log.Warnln("<FindClosestNode> Fail due to  ", err)
 						return
 					}
 					channel <- response

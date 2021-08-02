@@ -16,9 +16,9 @@ func (this *RoutingTable) InitRoutingTable(nodeID ID) {
 
 // Update  used when replier node is called and requester call successfully
 func (this *RoutingTable) Update(contact *Contact) {
-	log.Infoln("<Update> Update ", contact.address, " in ", this.nodeID)
+	log.Infoln("<Update> Update ", contact.Address)
 	this.rwLock.RLock()
-	bucket := this.buckets[PrefixLen(Xor(this.nodeID, contact.nodeID))]
+	bucket := this.buckets[PrefixLen(Xor(this.nodeID, contact.NodeID))]
 	target := bucket.Front()
 	target = nil
 	for i := bucket.Front(); ; i = i.Next() {
@@ -26,7 +26,7 @@ func (this *RoutingTable) Update(contact *Contact) {
 			target = nil
 			break
 		}
-		if i.Value.(*Contact).nodeID.Equals(contact.nodeID) {
+		if i.Value.(*Contact).NodeID.Equals(contact.NodeID) {
 			target = i
 			break
 		}
@@ -40,9 +40,11 @@ func (this *RoutingTable) Update(contact *Contact) {
 			bucket.PushBack(contact)
 		} else {
 			tmp := bucket.Front()
-			if !pureCheckConn(tmp.Value.(*Contact).address) {
+			if !pureCheckConn(tmp.Value.(*Contact).Address) {
 				bucket.Remove(tmp)
 				bucket.PushBack(contact)
+			} else {
+				bucket.MoveToBack(tmp)
 			}
 		}
 	}
@@ -55,19 +57,19 @@ func (this *RoutingTable) FindClosest(targetID ID, count int) []ContactRecord {
 	this.rwLock.RLock()
 	for i := this.buckets[index].Front(); i != nil && len(result) < count; i = i.Next() {
 		contact := i.Value.(*Contact)
-		result = append(result, ContactRecord{Xor(targetID, contact.nodeID), *contact})
+		result = append(result, ContactRecord{Xor(targetID, contact.NodeID), *contact})
 	}
 	for i := 1; (index-i >= 0 || index+i < IDlength*8) && len(result) < count; i++ {
 		if index-i >= 0 {
 			for j := this.buckets[index-i].Front(); j != nil && len(result) < count; j = j.Next() {
 				contact := j.Value.(*Contact)
-				result = append(result, ContactRecord{Xor(targetID, contact.nodeID), *contact})
+				result = append(result, ContactRecord{Xor(targetID, contact.NodeID), *contact})
 			}
 		}
 		if index+i < IDlength*8 {
 			for j := this.buckets[index+i].Front(); j != nil && len(result) < count; j = j.Next() {
 				contact := j.Value.(*Contact)
-				result = append(result, ContactRecord{Xor(targetID, contact.nodeID), *contact})
+				result = append(result, ContactRecord{Xor(targetID, contact.NodeID), *contact})
 			}
 		}
 	}

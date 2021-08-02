@@ -18,13 +18,13 @@ const tryTimes int = 3
 const localAddress string = "127.0.0.1"
 
 type Contact struct {
-	address string
-	nodeID  ID
+	Address string
+	NodeID  ID
 }
 
 type ContactRecord struct {
-	sortKey ID
-	contact Contact
+	SortKey     ID
+	ContactInfo Contact
 }
 
 type RoutingTable struct {
@@ -53,12 +53,12 @@ type network struct {
 }
 
 type FindNodeRequest struct {
-	requester Contact
-	target    ID
+	Requester Contact
+	Target    ID
 }
 
 type FindNodeReply struct {
-	requester Contact
-	replier   Contact
-	content   []ContactRecord
+	Requester Contact
+	Replier   Contact
+	Content   []ContactRecord
 }

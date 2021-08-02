@@ -79,10 +79,10 @@ func CheckOnline(self *Node, address *Contact) bool { // Ping
 	var occupy string
 	err := RemoteCall(self, address, "WrapNode.Ping", self.addr, &occupy)
 	if err != nil {
-		log.Infoln("<CheckOnline> Ping Fail in ", address.address, "because : ", err)
+		log.Infoln("<CheckOnline> Ping Fail in ", address.Address, "because : ", err)
 		return false
 	} else {
-		log.Infoln("<CheckOnline> Ping Online in ", address.address)
+		log.Infoln("<CheckOnline> Ping Online in ", address.Address)
 		return true
 	}
 }
@@ -101,13 +101,13 @@ func pureCheckConn(address string) bool {
 }
 
 func RemoteCall(self *Node, targetNode *Contact, funcClass string, input interface{}, result interface{}) error {
-	if targetNode.address == "" {
+	if targetNode.Address == "" {
 		log.Warningln("<RemoteCall> IP address is nil")
 		return errors.New("Null address for RemoteCall")
 	}
-	client, err := GetClient(targetNode.address)
+	client, err := GetClient(targetNode.Address)
 	if err != nil {
-		log.Warningln("<RemoteCall> Fail to dial in ", targetNode.address, " and error is ", err)
+		log.Warningln("<RemoteCall> ", funcClass, " Fail to dial in ", targetNode.Address, " and error is ", err)
 		return err
 	}
 	if client != nil {
@@ -116,21 +116,21 @@ func RemoteCall(self *Node, targetNode *Contact, funcClass string, input interfa
 	}
 	err2 := client.Call(funcClass, input, result)
 	if err2 == nil {
-		log.Infoln("<RemoteCall> in ", targetNode.address, " with ", funcClass, " success!")
+		log.Infoln("<RemoteCall> in ", targetNode.Address, " with ", funcClass, " success!")
 		return nil
 	} else {
-		log.Errorln("<RemoteCall> in ", targetNode.address, " with ", funcClass, " fail because : ", err2)
+		log.Errorln("<RemoteCall> in ", targetNode.Address, " with ", funcClass, " fail because : ", err2)
 		return err2
 	}
 }
 
-//func (this *network) ShutDown() error {
-//	this.QuitSignal <- true
-//	err := this.lis.Close()
-//	if err != nil {
-//		log.Errorln("<ShutDown> Fail to close the network in ", this.nodePtr.node.address)
-//		return err
-//	}
-//	log.Infoln("<ShutDown> -", this.nodePtr.node.address, "- network close successfully :)")
-//	return nil
-//}
+func (this *network) ShutDown() error {
+	this.QuitSignal <- true
+	err := this.lis.Close()
+	if err != nil {
+		log.Errorln("<ShutDown> Fail to close the network in ", this.nodePtr.node.addr.Address)
+		return err
+	}
+	log.Infoln("<ShutDown> -", this.nodePtr.node.addr.Address, "- network close successfully :)")
+	return nil
+}

@@ -1,10 +1,10 @@
 package kademlia
 
 func (this *WrapNode) GetClose(input FindNodeRequest, result *FindNodeReply) error {
-	result.content = this.node.table.FindClosest(input.target, K)
-	result.requester = input.requester
-	result.replier = this.node.addr
-	this.node.table.Update(&input.requester)
+	result.Content = this.node.table.FindClosest(input.Target, K)
+	result.Requester = input.Requester
+	result.Replier = this.node.addr
+	this.node.table.Update(&input.Requester)
 	return nil
 }
 

@@ -2,35 +2,16 @@ package kademlia
 
 import (
 	"crypto/sha1"
-	"encoding/hex"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"sort"
 )
 
-func NewID(hashValue string) (ID, error) {
-	var result ID
-	raw, err := hex.DecodeString(hashValue)
-	if err != nil {
-		log.Errorln("<NewID> Fail to generate ID due to ", err)
-		return result, err
-	}
-	for i := 0; i < IDlength; i++ {
-		result[i] = raw[i]
-	}
-	return result, nil
-}
-
 func NewContact(address string) Contact {
-	nodeID, _ := NewID(address)
-	return Contact{address: address, nodeID: nodeID}
+	nodeID := Hash(address)
+	return Contact{Address: address, NodeID: nodeID}
 }
 
-func (IDValue ID) String() string {
-	return hex.EncodeToString(IDValue[0:IDlength])
-}
-
-func Hash(raw string) (result [IDlength]byte) {
+func Hash(raw string) (result ID) {
 	hash := sha1.New()
 	hash.Write([]byte(raw))
 	tmp := hash.Sum(nil)
@@ -84,7 +65,7 @@ func PrefixLen(IDvalue ID) int {
 
 func SliceSort(dataSet *[]ContactRecord) {
 	sort.Slice(*dataSet, func(i, j int) bool {
-		return (*dataSet)[i].sortKey.LessThan((*dataSet)[j].sortKey)
+		return (*dataSet)[i].SortKey.LessThan((*dataSet)[j].SortKey)
 	})
 }
 
