@@ -3,6 +3,7 @@ package kademlia
 import (
 	"container/list"
 	log "github.com/sirupsen/logrus"
+	"time"
 )
 
 func (this *RoutingTable) InitRoutingTable(nodeID ID) {
@@ -10,7 +11,9 @@ func (this *RoutingTable) InitRoutingTable(nodeID ID) {
 	this.rwLock.Lock()
 	for i := 0; i < IDlength*8; i++ {
 		this.buckets[i] = list.New()
+		this.refreshTimeSet[i] = time.Now()
 	}
+	this.refreshIndex = 0
 	this.rwLock.Unlock()
 }
 

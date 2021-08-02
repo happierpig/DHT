@@ -2,6 +2,7 @@ package kademlia
 
 import (
 	"crypto/sha1"
+	"math/rand"
 	"net"
 	"sort"
 )
@@ -55,7 +56,7 @@ func Xor(one ID, other ID) (result ID) {
 func PrefixLen(IDvalue ID) int {
 	for i := 0; i < IDlength; i++ {
 		for j := 0; j <= 7; j++ {
-			if IDvalue[i]&(0b1<<(7-j)) == 0 {
+			if (IDvalue[i]>>(7-j))&(0b1) != 0 {
 				return i*8 + j
 			}
 		}
@@ -98,4 +99,20 @@ func GetLocalAddress() string {
 		panic("init: failed to find non-loopback interface with valid address on this node")
 	}
 	return localaddress
+}
+
+func GenerateID(origin ID, index int) (result ID) {
+	var blockIndex int = index / 8    //0 - 19
+	var concreteIndex int = index % 8 //0 - 7
+	for i := 0; i <= blockIndex; i++ {
+		result[i] = origin[i]
+	}
+	tmp := 0b1
+	tmp = tmp << (7 - concreteIndex)
+	result[blockIndex] = result[blockIndex] ^ byte(tmp)
+	for i := blockIndex + 1; i < IDlength; i++ {
+		x := rand.Uint32()
+		result[i] = byte(x)
+	}
+	return
 }

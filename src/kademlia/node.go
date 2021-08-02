@@ -116,3 +116,14 @@ func (this *Node) FindClosestNode(target ID) []ContactRecord {
 	}
 	return resultList
 }
+
+func (this *Node) Refresh() {
+	lastRefreshTime := this.table.refreshTimeSet[this.table.refreshIndex]
+	if !lastRefreshTime.Add(refreshTimeInterval).After(time.Now()) {
+		//use refreshIndex to construct a new ID
+		tmpID := GenerateID(this.addr.NodeID, this.table.refreshIndex)
+		this.FindClosestNode(tmpID)
+		this.table.refreshTimeSet[this.table.refreshIndex] = time.Now()
+	}
+	this.table.refreshIndex = (this.table.refreshIndex + 1) % (IDlength * 8)
+}

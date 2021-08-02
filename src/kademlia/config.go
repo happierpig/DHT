@@ -13,9 +13,11 @@ type ID [IDlength]byte
 
 const K int = 20 // buckets size
 const alpha int32 = 3
-const WaitTime time.Duration = 200 * time.Millisecond
 const tryTimes int = 3
 const localAddress string = "127.0.0.1"
+const WaitTime time.Duration = 200 * time.Millisecond
+const SleepTime time.Duration = 200 * time.Millisecond
+const refreshTimeInterval time.Duration = 10 * time.Second
 
 type Contact struct {
 	Address string
@@ -28,9 +30,11 @@ type ContactRecord struct {
 }
 
 type RoutingTable struct {
-	nodeID  ID
-	rwLock  deadlock.RWMutex
-	buckets [IDlength * 8]*list.List
+	nodeID         ID
+	rwLock         deadlock.RWMutex
+	buckets        [IDlength * 8]*list.List
+	refreshIndex   int
+	refreshTimeSet [IDlength * 8]time.Time
 }
 
 type Node struct {
