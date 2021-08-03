@@ -30,6 +30,10 @@
   >http://www.yeolar.com/note/2010/03/21/kademlia/
   >
   >https://blog.jse.li/posts/torrent/#putting-it-all-together
+  >
+  >以及蔡子逸、许烨辰学长的github仓库
+  >
+  >万分感谢学长学姐的答疑！！
 
 ## Chord Protocol
 
