@@ -21,8 +21,8 @@ type Pair struct {
 }
 
 func init() {
-	//localAddress = GetLocalAddress()
-	localAddress = "127.0.0.1"
+	localAddress = GetLocalAddress()
+	//localAddress = "127.0.0.1"
 	base = big.NewInt(2)
 	calculateMod = new(big.Int).Exp(base, big.NewInt(160), nil)
 	timeCut = 200 * time.Millisecond
@@ -38,10 +38,12 @@ func ConsistentHash(raw string) *big.Int {
 // GetLocalAddress function to get local address(ip address)
 func GetLocalAddress() string {
 	var localaddress string
+
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		panic("init: failed to find network interfaces")
 	}
+
 	// find the first non-loopback interface with an IP address
 	for _, elt := range ifaces {
 		if elt.Flags&net.FlagLoopback == 0 && elt.Flags&net.FlagUp != 0 {
@@ -64,6 +66,7 @@ func GetLocalAddress() string {
 	if localaddress == "" {
 		panic("init: failed to find non-loopback interface with valid address on this node")
 	}
+
 	return localaddress
 }
 
