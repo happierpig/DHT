@@ -4,6 +4,33 @@
 
 本项目实现了分布式哈希表`chord && kademlia Protocol`，以及基于`chord Protocol`的简易文件分享application。
 
+- 详细开发文档请见：https://github.com/happierpig/DHT/blob/master/DHT%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3.md
+
+- 仓库：https://github.com/happierpig/DHT
+
+- 使用的外部包：
+
+  ```go
+  log "github.com/sirupsen/logrus"
+  "github.com/sasha-s/go-deadlock"
+  ```
+
+- 参考资料:
+
+  >http://xlattice.sourceforge.net/components/protocol/kademlia/specs.html#intro
+  >
+  >https://en.wikipedia.org/wiki/Kademlia
+  >
+  >https://en.wikipedia.org/wiki/Chord_(peer-to-peer)
+  >
+  >http://blog.notdot.net/2009/11/Implementing-a-DHT-in-Go-part-1
+  >
+  >https://program-think.blogspot.com/2017/09/Introduction-DHT-Kademlia-Chord.html
+  >
+  >http://www.yeolar.com/note/2010/03/21/kademlia/
+  >
+  >https://blog.jse.li/posts/torrent/#putting-it-all-together
+
 ## Chord Protocol
 
 - 实现的类
@@ -49,6 +76,4 @@
 - 下载：通过种子文件/磁力链接将目标文件下载到指定路径下
 
 
-
-详细开发文档请见：https://github.com/happierpig/DHT/blob/master/DHT%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3.md
 
