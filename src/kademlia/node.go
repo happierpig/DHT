@@ -137,7 +137,6 @@ func (this *Node) Put(key string, value string) bool {
 	this.data.store(request)
 	request.RequesterPri = publisher
 	this.RangePut(request)
-	log.Infoln("<Put> Try to put <", key, "> in ", this.addr.Address)
 	return true
 }
 
@@ -209,7 +208,7 @@ func (this *Node) Get(key string) (bool, string) {
 				for _, v := range response.Content {
 					pendingList = append(pendingList, v)
 				}
-				SliceSort(&pendingList)
+				SliceSort(&pendingList) // efficiency
 			case <-time.After(WaitTime):
 				log.Infoln("<Get> Avoid Blocking...")
 			}
@@ -288,25 +287,25 @@ func (this *Node) Background() {
 	go func() {
 		for this.isRunning {
 			this.Refresh()
-			time.Sleep(backgroundInterval)
+			time.Sleep(backgroundInterval1)
 		}
 	}()
 	go func() {
 		for this.isRunning {
 			this.Duplicate()
-			time.Sleep(backgroundInterval)
+			time.Sleep(backgroundInterval2)
 		}
 	}()
 	go func() {
 		for this.isRunning {
 			this.Expire()
-			time.Sleep(backgroundInterval)
+			time.Sleep(backgroundInterval2)
 		}
 	}()
 	go func() {
 		for this.isRunning {
 			this.Republic()
-			time.Sleep(backgroundInterval)
+			time.Sleep(backgroundInterval2)
 		}
 	}()
 }
@@ -315,10 +314,12 @@ func (this *Node) Background() {
 func (this *Node) Create() {
 
 }
+
 func (this *Node) ForceQuit() {
 	this.station.ShutDown()
 	this.reset()
 }
+
 func (this *Node) Delete(key string) bool {
 	return true
 }

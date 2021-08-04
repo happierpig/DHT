@@ -89,14 +89,42 @@ DHT减少了系统单点故障的可能性、能将流量负担分摊到各个�
 ### Debug
 
 1. channel会阻塞
+
 2. 小心死锁，Lock区块避开递归
+
 3. Register函数参数顺序必须是Input、output，只有input才发送出去，output输出回来
+
 4. 慎用指针，因为并不共享一块内存空间，数据交流依赖于rpc，直接传输对象的字节流。
-5. `use of closed connection`：通过自定义Accept规避
 
+5. `use of closed connection`：通过自定义server.Accept()规避
 
+   ```go
+   func MyAccept(server *rpc.Server, lis net.Listener, ptr *Node) { // used for closing listener
+   	for {
+   		conn, err := lis.Accept() // block,so goroutine a new thread
+   		select {
+   		case <-ptr.station.QuitSignal:
+   			return
+   		default:
+   			if err != nil {
+   				log.Print("rpc.Serve: accept:", err.Error())
+   				return
+   			}
+   			go server.ServeConn(conn)
+   		}
+   	}
+   }
+   ```
+
+6. for 与 select 嵌套使用，break只能跳出select
 
 ## Kademlia Protocol
+
+### Documents
+
+> http://www.yeolar.com/note/2010/03/21/kademlia/
+>
+> https://program-think.blogspot.com/2017/09/Introduction-DHT-Kademlia-Chord.html
 
 ### Node/Key Distribution 
 
@@ -176,7 +204,13 @@ The main reason is that you rapidly query many nodes that you have never establi
   
   `database` 包含时间处理的数据库封装
 
+### Debug
 
+- for select 嵌套使用与break
+
+- 计数器(采用atomic并发安全)在goroutine里使用会延迟
+
+  
 
 ## Application
 

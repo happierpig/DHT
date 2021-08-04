@@ -40,6 +40,7 @@ func (this *database) store(request StoreRequest) {
 			this.expireTime[request.Key] = time.Now().Add(expireTimeInterval3)
 			return
 		}
+		log.Errorf("<database store> Wrong privilege1")
 	} else {
 		originPri := this.privilege[request.Key]
 		requestPri := request.RequesterPri
@@ -60,14 +61,18 @@ func (this *database) store(request StoreRequest) {
 			this.dataset[request.Key] = request.Value
 			this.expireTime[request.Key] = time.Now().Add(expireTimeInterval2)
 			this.duplicateTime[request.Key] = time.Now().Add(duplicateTimeInterval)
+			delete(this.republicTime, request.Key)
 			return
 		}
 		if requestPri == duplicater {
 			this.privilege[request.Key] = common
 			this.dataset[request.Key] = request.Value
 			this.expireTime[request.Key] = time.Now().Add(expireTimeInterval3)
+			delete(this.duplicateTime, request.Key)
+			delete(this.republicTime, request.Key)
 			return
 		}
+		log.Errorf("<database store> Wrong privilege2")
 	}
 }
 
@@ -82,7 +87,6 @@ func (this *database) expire() {
 	this.rwLock.RUnlock()
 	this.rwLock.Lock()
 	for k, _ := range tmp {
-		log.Infoln("<Database expire> Throw ", k)
 		delete(this.dataset, k)
 		delete(this.expireTime, k)
 		delete(this.duplicateTime, k)
@@ -131,7 +135,9 @@ func (this *database) get(key string) (bool, string) {
 	defer this.rwLock.Unlock()
 	if v, ok := this.dataset[key]; ok {
 		if _, ok2 := this.expireTime[key]; ok2 {
-			this.expireTime[key] = time.Now().Add(expireTimeInterval2)
+			if !this.expireTime[key].After(time.Now().Add(expireTimeInterval3)) {
+				this.expireTime[key] = time.Now().Add(expireTimeInterval3)
+			}
 		}
 		return true, v
 	} else {

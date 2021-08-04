@@ -10,7 +10,7 @@ import (
 
 func MyAccept(server *rpc.Server, lis net.Listener, ptr *Node) { // used for closing listener
 	for {
-		conn, err := lis.Accept()
+		conn, err := lis.Accept() // block
 		select {
 		case <-ptr.station.QuitSignal:
 			return
@@ -54,11 +54,12 @@ func GetClient(address string) (*rpc.Client, error) {
 	}
 	var client *rpc.Client
 	var err error
-	ch := make(chan error)
+	ch := make(chan error, tryTimes)
 	for i := 0; i < tryTimes; i++ {
 		go func() {
 			client, err = rpc.Dial("tcp", address)
 			ch <- err
+			return
 		}()
 		select {
 		case <-ch:
@@ -87,7 +88,7 @@ func CheckOnline(self *Node, address *Contact) bool { // Ping
 	}
 }
 
-func pureCheckConn(address string) bool {
+func pureCheckConn(address string) bool { // avoid endless iteration
 	client, err := GetClient(address)
 	if err != nil {
 		return false

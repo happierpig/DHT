@@ -79,6 +79,5 @@ func (this *RoutingTable) FindClosest(targetID ID, count int) []ContactRecord {
 		}
 	}
 	this.rwLock.RUnlock()
-	//SliceSort(&result)
 	return result
 }
