@@ -82,7 +82,7 @@ func CheckOnline(self *Node, address *Contact) bool { // Ping
 		log.Infoln("<CheckOnline> Ping Fail in ", address.Address, "because : ", err)
 		return false
 	} else {
-		log.Infoln("<CheckOnline> Ping Online in ", address.Address)
+		//log.Infoln("<CheckOnline> Ping Online in ", address.Address)
 		return true
 	}
 }
@@ -116,7 +116,6 @@ func RemoteCall(self *Node, targetNode *Contact, funcClass string, input interfa
 	}
 	err2 := client.Call(funcClass, input, result)
 	if err2 == nil {
-		log.Infoln("<RemoteCall> in ", targetNode.Address, " with ", funcClass, " success!")
 		return nil
 	} else {
 		log.Errorln("<RemoteCall> in ", targetNode.Address, " with ", funcClass, " fail because : ", err2)

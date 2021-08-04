@@ -1,6 +1,7 @@
 package kademlia
 
 import (
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -81,6 +82,7 @@ func (this *database) expire() {
 	this.rwLock.RUnlock()
 	this.rwLock.Lock()
 	for k, _ := range tmp {
+		log.Infoln("<Database expire> Throw ", k)
 		delete(this.dataset, k)
 		delete(this.expireTime, k)
 		delete(this.duplicateTime, k)

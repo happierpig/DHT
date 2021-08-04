@@ -2,12 +2,11 @@ package kademlia
 
 import (
 	"container/list"
-	log "github.com/sirupsen/logrus"
 	"time"
 )
 
-func (this *RoutingTable) InitRoutingTable(nodeID ID) {
-	this.nodeID = nodeID
+func (this *RoutingTable) InitRoutingTable(nodeAddr Contact) {
+	this.nodeAddr = nodeAddr
 	this.rwLock.Lock()
 	for i := 0; i < IDlength*8; i++ {
 		this.buckets[i] = list.New()
@@ -19,9 +18,9 @@ func (this *RoutingTable) InitRoutingTable(nodeID ID) {
 
 // Update  used when replier node is called and requester call successfully
 func (this *RoutingTable) Update(contact *Contact) {
-	log.Infoln("<Update> Update ", contact.Address)
+	//log.Infoln("<Update> Update ",contact.Address)
 	this.rwLock.RLock()
-	bucket := this.buckets[PrefixLen(Xor(this.nodeID, contact.NodeID))]
+	bucket := this.buckets[PrefixLen(Xor(this.nodeAddr.NodeID, contact.NodeID))]
 	target := bucket.Front()
 	target = nil
 	for i := bucket.Front(); ; i = i.Next() {
@@ -56,8 +55,11 @@ func (this *RoutingTable) Update(contact *Contact) {
 
 func (this *RoutingTable) FindClosest(targetID ID, count int) []ContactRecord {
 	result := make([]ContactRecord, 0, count)
-	index := PrefixLen(Xor(this.nodeID, targetID))
+	index := PrefixLen(Xor(this.nodeAddr.NodeID, targetID))
 	this.rwLock.RLock()
+	if targetID == this.nodeAddr.NodeID {
+		result = append(result, ContactRecord{Xor(targetID, targetID), NewContact(this.nodeAddr.Address)})
+	}
 	for i := this.buckets[index].Front(); i != nil && len(result) < count; i = i.Next() {
 		contact := i.Value.(*Contact)
 		result = append(result, ContactRecord{Xor(targetID, contact.NodeID), *contact})
@@ -77,6 +79,6 @@ func (this *RoutingTable) FindClosest(targetID ID, count int) []ContactRecord {
 		}
 	}
 	this.rwLock.RUnlock()
-	SliceSort(&result)
+	//SliceSort(&result)
 	return result
 }

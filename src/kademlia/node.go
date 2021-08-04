@@ -9,7 +9,7 @@ import (
 
 func (this *Node) reset() {
 	this.isRunning = false
-	this.table.InitRoutingTable(this.addr.NodeID)
+	this.table.InitRoutingTable(this.addr)
 	this.data.init()
 }
 
@@ -47,8 +47,9 @@ func (this *Node) Quit() {
 	this.reset()
 }
 
-func (this *Node) Ping(requester Contact) {
-	log.Infoln("<Ping>", this.addr.Address, "is Ping by ", requester.Address)
+func (this *Node) Ping(requester string) bool {
+	//log.Infoln("<Ping>",this.addr.Address,"is Ping by ",requester.Address)
+	return true
 }
 
 func (this *Node) FindClosestNode(target ID) []ContactRecord {
@@ -88,6 +89,7 @@ func (this *Node) FindClosestNode(target ID) []ContactRecord {
 				for _, v := range response.Content {
 					pendingList = append(pendingList, v)
 				}
+				SliceSort(&pendingList)
 			case <-time.After(WaitTime):
 				log.Infoln("<FindClosestNode> Avoid Blocking...")
 			}
@@ -130,12 +132,13 @@ func (this *Node) Refresh() {
 	this.table.refreshIndex = (this.table.refreshIndex + 1) % (IDlength * 8)
 }
 
-func (this *Node) Put(key string, value string) {
+func (this *Node) Put(key string, value string) bool {
 	request := StoreRequest{key, value, root, this.addr}
 	this.data.store(request)
 	request.RequesterPri = publisher
 	this.RangePut(request)
-	log.Infoln("<Put> Successfully in ", this.addr.Address)
+	log.Infoln("<Put> Try to put <", key, "> in ", this.addr.Address)
+	return true
 }
 
 func (this *Node) RangePut(request StoreRequest) {
@@ -146,8 +149,8 @@ func (this *Node) RangePut(request StoreRequest) {
 		if *count < alpha {
 			target := pendingList[index].ContactInfo
 			index++
+			atomic.AddInt32(count, 1)
 			go func(input StoreRequest, targetNode *Contact) {
-				atomic.AddInt32(count, 1)
 				var occupy string
 				err := RemoteCall(this, targetNode, "WrapNode.Store", input, &occupy)
 				if err != nil {
@@ -155,8 +158,9 @@ func (this *Node) RangePut(request StoreRequest) {
 				}
 				atomic.AddInt32(count, -1)
 			}(request, &target)
+		} else {
+			time.Sleep(SleepTime)
 		}
-		time.Sleep(SleepTime)
 	}
 }
 
@@ -176,8 +180,8 @@ func (this *Node) Get(key string) (bool, string) {
 		tmpReplier := pendingList[index].ContactInfo
 		if _, ok := visit[tmpReplier.Address]; !ok {
 			visit[tmpReplier.Address] = true
+			atomic.AddInt32(inRun, 1)
 			go func(Replier *Contact, channel chan FindValueReply) {
-				atomic.AddInt32(inRun, 1)
 				var response FindValueReply
 				err := RemoteCall(this, Replier, "WrapNode.FindValue", requestInfo, &response)
 				if err != nil {
@@ -205,16 +209,20 @@ func (this *Node) Get(key string) (bool, string) {
 				for _, v := range response.Content {
 					pendingList = append(pendingList, v)
 				}
+				SliceSort(&pendingList)
 			case <-time.After(WaitTime):
 				log.Infoln("<Get> Avoid Blocking...")
+			}
+			if isFind {
+				break
 			}
 		}
 		for index < len(pendingList) && *inRun < alpha && !isFind {
 			tmpReplier := pendingList[index].ContactInfo
 			if _, ok := visit[tmpReplier.Address]; !ok {
 				visit[tmpReplier.Address] = true
+				atomic.AddInt32(inRun, 1)
 				go func(Replier *Contact, channel chan FindValueReply) {
-					atomic.AddInt32(inRun, 1)
 					var response FindValueReply
 					err := RemoteCall(this, Replier, "WrapNode.FindValue", requestInfo, &response)
 					if err != nil {
@@ -239,8 +247,8 @@ func (this *Node) Get(key string) (bool, string) {
 			if *count < alpha {
 				target := resultList[i]
 				i++
+				atomic.AddInt32(count, 1)
 				go func(input StoreRequest, targetNode *Contact) {
-					atomic.AddInt32(count, 1)
 					var occupy string
 					err := RemoteCall(this, targetNode, "WrapNode.Store", input, &occupy)
 					if err != nil {
@@ -248,8 +256,9 @@ func (this *Node) Get(key string) (bool, string) {
 					}
 					atomic.AddInt32(count, -1)
 				}(StoreInfo, &target)
+			} else {
+				time.Sleep(SleepTime)
 			}
-			time.Sleep(SleepTime)
 		}
 		return true, reply
 	}
@@ -261,7 +270,6 @@ func (this *Node) Republic() {
 		request := StoreRequest{k, v, publisher, this.addr}
 		this.RangePut(request)
 	}
-	log.Infoln("<Republic> Finished in ", this.addr.Address)
 }
 
 func (this *Node) Duplicate() {
@@ -270,12 +278,10 @@ func (this *Node) Duplicate() {
 		request := StoreRequest{k, v, duplicater, this.addr}
 		this.RangePut(request)
 	}
-	log.Infoln("<Duplicate> Finished in ", this.addr.Address)
 }
 
 func (this *Node) Expire() {
 	this.data.expire()
-	log.Infoln("<Expire> Finished in ", this.addr.Address)
 }
 
 func (this *Node) Background() {
@@ -303,4 +309,16 @@ func (this *Node) Background() {
 			time.Sleep(backgroundInterval)
 		}
 	}()
+}
+
+// unused function
+func (this *Node) Create() {
+
+}
+func (this *Node) ForceQuit() {
+	this.station.ShutDown()
+	this.reset()
+}
+func (this *Node) Delete(key string) bool {
+	return true
 }
